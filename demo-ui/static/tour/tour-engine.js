@@ -38,7 +38,7 @@ export class GuidedTour {
       if (idx >= 0) this.start(idx); else this.showWelcome();
     } else if (this.state.active) {
       this.showStep(); // resume an in-progress tour after reload
-    } else if (!localStorage.getItem(HIDE_WELCOME_KEY) && !sessionStorage.getItem(SEEN_KEY)) {
+    } else if (forced !== '0' && !localStorage.getItem(HIDE_WELCOME_KEY) && !sessionStorage.getItem(SEEN_KEY)) {
       this.showWelcome();
     }
   }

@@ -41,9 +41,10 @@ Requests that are blocked early generate **zero LLM tokens and zero inference co
 
 ```
 Browser ─► demo-ui (Cloud Run, IAP) ─► Apigee guardrail-proxy ─┬─► StaticGuardrails SharedFlow   (inbound + outbound)
-                                                              ├─► Model Armor SUP / SMR         (inbound + mid-stream outbound)
-                                                              ├─► nemo-guardrails (Cloud Run)   (inbound, optional profile)
-                                                              └─► Vertex AI Gemini  streamGenerateContent?alt=sse
+                                                               ├─► Model Armor SUP / SMR         (inbound + mid-stream outbound)
+                                                               ├─► nemo-guardrails (Cloud Run)   (inbound, optional profile)
+                                                               ├─► Vertex AI Gemini  streamGenerateContent?alt=sse
+                                                               └─► Cloud Logging                 (PostClientFlow audit & telemetry)
 ```
 
 Each layer can be switched per request with headers set by the UI (`x-static-guardrails`, `x-static-outbound`, `x-inbound`, `x-outbound`, `x-nemo-guardrails`, `x-nemo-profile`), so the same proxy can demonstrate any combination.
@@ -52,14 +53,20 @@ Each layer can be switched per request with headers set by the UI (`x-static-gua
 
 ## 🖥️ Demonstration Web UI
 
-![Web UI](docs/images/webui-screenshot.png)
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/webui-screenshot-dark.png">
+    <img src="docs/images/webui-screenshot.png" alt="Apigee and Guardrails Solutions Web UI" width="100%">
+  </picture>
+</p>
 
 * **Test Scenario** — tabs for *Baseline*, *Static*, *Model Armor*, *NeMo* and *Layered* scenarios. With **Auto-configure layers** on, picking a scenario also sets the right policies.
 * **Prompt** — editable prompt with the expected outcome of the selected scenario.
-* **Inspection Policies** — one grid for all three layers (inbound / outbound / NeMo rail), with presets *Strict*, *Safe-flow*, *Observe* and *Off*, plus ⓘ details for each layer.
+* **Inspection Policies** — one grid for all three layers (inbound / outbound / NeMo rail), with presets *Strict*, *Safe-flow*, *Observe* and *Off*, plus ⓘ details for each layer and a *When to choose what* comparison modal.
+* **Demo Architecture** — quick-access card in the bottom-left panel (and header button) opening the interactive 3-layer architecture diagram and 5-step flow breakdown.
 * **Results** — live SSE token stream, TTFT and total duration, which layer blocked (and why), the Model Armor findings, and a raw SSE chunk timeline.
 * **Guided Tour** — 8 short missions (plus a bonus) that walk through each layer. The *What just happened?* panel explains every result, e.g. when Static Guardrails miss a reworded jailbreak and Model Armor catches it.
-* **Admin Panel** — audit analytics (block rate, violation types, recent events), synced from Cloud Logging (`apigee-ai-sanitized-prompts`).
+* **Admin Panel** — slide-out audit analytics drawer (block rate, violation types, recent events), synced from Cloud Logging (`apigee-ai-sanitized-prompts`).
 
 ---
 
@@ -86,7 +93,8 @@ Each layer can be switched per request with headers set by the UI (`x-static-gua
 ├── demo-ui/                      # Demo web app (Python stdlib server + static front end)
 │   ├── app.py                    # SSE proxy to Apigee, admin analytics API, Cloud Logging sync
 │   ├── Dockerfile                # non-root python:3.11-slim image
-│   └── static/                   # index.html, app.js, style.css, tour/ (Guided Tour)
+│   └── static/                   # index.html, app.js, style.css, assets/architecture-diagram.png, tour/
+├── docs/images/                  # Light & dark Web UI screenshots for README
 ├── setup-developer-app.sh        # creates the API product + developer app used by VerifyAPIKey
 └── run-demo.sh                   # runs the UI locally (fetches the API key from Secret Manager)
 ```
