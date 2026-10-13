@@ -1535,6 +1535,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Architecture Modal handlers
         const btnOpenArchModal = document.getElementById('btnOpenArchModal');
+        const btnViewArchDiagram = document.getElementById('btnViewArchDiagram');
         const archModalOverlay = document.getElementById('archModalOverlay');
         const archModalCloseBtn = document.getElementById('archModalCloseBtn');
         const btnArchModalCloseAction = document.getElementById('btnArchModalCloseAction');
@@ -1547,6 +1548,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (btnOpenArchModal) btnOpenArchModal.addEventListener('click', openArchModal);
+        if (btnViewArchDiagram) btnViewArchDiagram.addEventListener('click', openArchModal);
         if (archModalCloseBtn) archModalCloseBtn.addEventListener('click', closeArchModal);
         if (btnArchModalCloseAction) btnArchModalCloseAction.addEventListener('click', closeArchModal);
         if (archModalOverlay) {

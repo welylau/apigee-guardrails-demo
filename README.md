@@ -36,7 +36,7 @@ Requests that are blocked early generate **zero LLM tokens and zero inference co
 ## 🏛️ High-Level Architecture
 
 <p align="center">
-  <img src="docs/images/architecture-diagram.png" alt="Apigee X AI Gateway with Static Guardrails, Model Armor and NeMo Guardrails" width="100%">
+  <img src="demo-ui/static/assets/architecture-diagram.png" alt="Apigee X AI Gateway with Static Guardrails, Model Armor and NeMo Guardrails" width="100%">
 </p>
 
 ```

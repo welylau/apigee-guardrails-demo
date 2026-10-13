@@ -264,6 +264,41 @@
                     </div>
                 </div>
 
+                <!-- Section 4: Demo Architecture Card -->
+                <div class="panel-section arch-card-section">
+                    <div class="arch-card-header">
+                        <div class="arch-icon-wrapper">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="2" y="9" width="6" height="6" rx="1.5"></rect>
+                                <rect x="16" y="3" width="6" height="6" rx="1.5"></rect>
+                                <rect x="16" y="15" width="6" height="6" rx="1.5"></rect>
+                                <path d="M8 12h4"></path>
+                                <path d="M12 6v12"></path>
+                                <path d="M12 6h4"></path>
+                                <path d="M12 18h4"></path>
+                            </svg>
+                        </div>
+                        <div class="arch-title-group">
+                            <div class="arch-title-row">
+                                <h3 class="arch-title">Demo Architecture</h3>
+                                <span class="arch-pill-tag">Apigee + Gemini</span>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="arch-desc">
+                        Visual overview of how Apigee X AI Gateway, Static Guardrails, Model Armor, and NeMo Guardrails interact with Vertex AI Gemini to enforce multi-layer security and telemetry.
+                    </p>
+                    <button type="button" id="btnViewArchDiagram" class="btn-view-arch" title="View interactive architecture diagram modal">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            <line x1="11" y1="8" x2="11" y2="14"></line>
+                            <line x1="8" y1="11" x2="14" y2="11"></line>
+                        </svg>
+                        <span>View Architecture Diagram</span>
+                    </button>
+                </div>
+
             </aside>
 
             <!-- DRAGGABLE RESIZER HANDLE -->
@@ -563,13 +598,13 @@
                     <span class="arch-modal-badge">Static + Model Armor + NeMo</span>
                 </div>
                 <div style="display: flex; gap: 8px; align-items: center;">
-                    <a href="assets/architecture-diagram.png?v=2" target="_blank" download="apigee-multi-layer-guardrails-architecture.png" class="btn-modal-copy" style="text-decoration: none; display: inline-flex; align-items: center; gap: 4px; padding: 5px 12px; font-size: 12px;">⬇️ Download PNG</a>
+                    <a href="assets/architecture-diagram.png?v=4" target="_blank" download="apigee-multi-layer-guardrails-architecture.png" class="btn-modal-copy" style="text-decoration: none; display: inline-flex; align-items: center; gap: 4px; padding: 5px 12px; font-size: 12px;">⬇️ Download PNG</a>
                     <button type="button" class="modal-close-btn" id="archModalCloseBtn">&times;</button>
                 </div>
             </div>
             <div class="modal-body arch-modal-body">
                 <div class="arch-diagram-wrapper">
-                    <img src="assets/architecture-diagram.png?v=2" alt="Apigee X Multi-Layer Guardrails Architecture Diagram" class="arch-modal-img">
+                    <img src="assets/architecture-diagram.png?v=4" alt="Apigee X Multi-Layer Guardrails Architecture Diagram" class="arch-modal-img">
                 </div>
 
                 <!-- 5 Architectural Steps -->

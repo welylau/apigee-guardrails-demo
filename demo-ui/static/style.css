@@ -2013,6 +2013,115 @@ html, body {
 }
 
 /* Demo Architecture Card on Left Panel */
+.arch-card-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.arch-card-section:hover {
+  border-color: var(--border-accent);
+  box-shadow: var(--shadow-md);
+}
+
+.arch-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.arch-icon-wrapper {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #1a73e8 0%, #1557b0 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(26, 115, 232, 0.28);
+}
+
+.arch-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.arch-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.arch-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0;
+  letter-spacing: -0.2px;
+}
+
+.arch-pill-tag {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--google-blue);
+  background: var(--google-blue-subtle);
+  border: 1px solid rgba(26, 115, 232, 0.25);
+  padding: 2px 10px;
+  border-radius: 9999px;
+}
+
+[data-theme="dark"] .arch-pill-tag {
+  background: rgba(26, 115, 232, 0.18);
+  border-color: rgba(26, 115, 232, 0.35);
+  color: #8ab4f8;
+}
+
+.arch-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.btn-view-arch {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--google-blue);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(26, 115, 232, 0.25);
+  transition: background-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn-view-arch:hover {
+  background: var(--google-blue-hover);
+  box-shadow: 0 4px 10px rgba(26, 115, 232, 0.35);
+  transform: translateY(-1px);
+}
+
+.btn-view-arch:active {
+  transform: translateY(0);
+}
 
 /* Architecture Modal Pop-up (Image 2 style) */
 .arch-modal-card {
