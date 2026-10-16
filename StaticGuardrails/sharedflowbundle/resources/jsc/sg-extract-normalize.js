@@ -73,6 +73,7 @@ context.setVariable('sg.metrics', JSON.stringify({
   turns: turns, maxTurns: intProp('limit.max_turns', 20),
   zeroWidth: n.zeroWidth, maxZeroWidth: intProp('limit.max_zero_width', 5),
   control: n.control, maxControl: intProp('limit.max_control_chars', 5),
+  tags: n.tags,
   parseError: parseError
 }));
 context.setVariable('sg.lexicon', JSON.stringify(SG.loadLexicon(prop)));

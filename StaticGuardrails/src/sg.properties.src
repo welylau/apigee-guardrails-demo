@@ -1,7 +1,26 @@
+# ##############################################################################
+# ##############################################################################
+# ##                                                                          ##
+# ##   !!!  CONTENT WARNING - PROFANITY / OFFENSIVE LANGUAGE  !!!             ##
+# ##                                                                          ##
+# ##   THIS FILE CONTAINS BAD WORDS, PROFANITY, INSULTS, THREATS AND          ##
+# ##   SELF-HARM / VIOLENT PHRASES IN SEVERAL LANGUAGES (EN, ZH, JA, KO,      ##
+# ##   TH, VI, MS, ID).                                                       ##
+# ##                                                                          ##
+# ##   - These terms are listed ONLY so the Static Guardrails demo can        ##
+# ##     DETECT and BLOCK them at the API gateway.                            ##
+# ##   - They do NOT reflect the views of the author or of Google.            ##
+# ##   - FOR DEMO / EDUCATIONAL PURPOSES ONLY. This is NOT a complete,        ##
+# ##     reviewed or production-grade word list.                              ##
+# ##   - Reader discretion is advised.                                        ##
+# ##                                                                          ##
+# ##############################################################################
+# ##############################################################################
+#
 # ==============================================================================
 # StaticGuardrails property set (source file, UTF-8).
-# build.py converts this to resources/properties/sg.properties with non-ASCII
-# characters escaped as \uXXXX. Flow access: propertyset.sg.<key>
+# build.py converts this to env/sg.properties with non-ASCII characters escaped
+# as \uXXXX. Flow access: propertyset.sg.<key>
 #
 # Lists are comma-separated. Matching rules:
 #   - ASCII terms  : whole-word match on the "folded" prompt (lower-case, leetspeak
@@ -10,8 +29,12 @@
 #                    word boundaries - prefer multi-character phrases to avoid FPs,
 #                    e.g. use "去死吧" not "去死", which also matches "过去死亡").
 #
+# Supported language keys: en, zh, ja, ko, th, vi, ms, id (see SG.loadLexicon).
+#
 # Word lists are a curated demo seed. For production, import and review a maintained
-# list (e.g. LDNOOBW multi-language list) and have native speakers validate TH/VI/JA/ZH.
+# list (e.g. LDNOOBW multi-language list) and have native speakers validate every
+# non-English entry. Words with common innocent meanings (e.g. ID "anjing" = dog,
+# MS "babi" = pig, ZH "垃圾" = garbage) are deliberately NOT listed to avoid FPs.
 # ==============================================================================
 
 # ---- Mode & limits -----------------------------------------------------------
@@ -25,29 +48,38 @@ limit.max_control_chars=5
 escalation.min_flag_categories=2
 
 # ---- Harsh language: Tier 1 (severe: death wishes, threats) -> BLOCK -----------
-# EN threats/incitement are regex rule SG-LEX-T1-RE (build.py). Non-English phrases:
+# EN threats/incitement/self-harm are regex rules SG-LEX-T1-RE / SG-LEX-T1-SH (build.py).
 lex.t1.en=
-lex.t1.zh=去死吧,你去死,杀了你,弄死你,死全家
-lex.t1.ja=死ね,死んでしまえ,殺してやる,消えろ
-lex.t1.th=ไปตายซะ,ฆ่าแก,ไปตายไป
-lex.t1.vi=chết đi,giết mày,biến đi chết đi
+lex.t1.zh=去死吧,你去死,杀了你,弄死你,死全家,砍死你,打死你,杀你全家
+lex.t1.ja=死ね,死んでしまえ,殺してやる,消えろ,殺すぞ,ぶっ殺して
+lex.t1.ko=죽어버려,죽여버린다,죽여버릴,죽어라
+lex.t1.th=ไปตายซะ,ฆ่าแก,ไปตายไป,จะฆ่ามึง
+lex.t1.vi=chết đi,giết mày,biến đi chết đi,tao giết mày
+lex.t1.ms=aku bunuh kau,pergi mampus,mati kau
+lex.t1.id=gue bunuh lo,aku bunuh kamu,mati aja lo,mampus lo
 
 # ---- Harsh language: Tier 2 (strong profanity) -> BLOCK -----------------------
-lex.t2.en=fuck,fucking,fucker,motherfucker,shit,bullshit,bitch,bastard,asshole,cunt,dickhead,wanker,twat,prick
-lex.t2.zh=傻逼,操你妈,他妈的,狗日的,王八蛋,滚你妈
-lex.t2.ja=クソ野郎,くたばれ,ぶっ殺す
-lex.t2.th=ไอ้เหี้ย,ควย,ไอ้สัส,ไอ้สัตว์,อีดอก
-lex.t2.vi=đụ má,địt mẹ,đéo,đồ chó,con đĩ
+lex.t2.en=fuck,fucking,fucker,motherfucker,shit,bullshit,shithead,bitch,bastard,asshole,cunt,dickhead,wanker,twat,prick,dipshit,dumbass,jackass,douchebag,cocksucker,slut,whore,piss off,screw you
+lex.t2.zh=傻逼,操你妈,他妈的,狗日的,王八蛋,滚你妈,草泥马,去你妈的,贱人,婊子
+lex.t2.ja=クソ野郎,くたばれ,ぶっ殺す,ざけんな
+lex.t2.ko=씨발,시발,개새끼,병신,좆까
+lex.t2.th=ไอ้เหี้ย,ควย,ไอ้สัส,ไอ้สัตว์,อีดอก,เย็ดแม่
+lex.t2.vi=đụ má,địt mẹ,đéo,đồ chó,con đĩ,vãi lồn,đồ khốn nạn
+lex.t2.ms=pukimak,kimak,lancau,butoh
+lex.t2.id=bangsat,kontol,memek,ngentot,bajingan
 
 # ---- Harsh language: Tier 3 (mild insults) -> LOG only -------------------------
-lex.t3.en=idiot,stupid,moron,dumb,loser,shut up,useless
-lex.t3.zh=蠢货,笨蛋,废物
-lex.t3.ja=バカ,アホ,役立たず
+lex.t3.en=idiot,stupid,moron,dumb,loser,shut up,useless,jerk,pathetic,worthless,imbecile,dimwit
+lex.t3.zh=蠢货,笨蛋,废物,白痴,脑残
+lex.t3.ja=バカ,アホ,役立たず,間抜け
+lex.t3.ko=바보,멍청이
 lex.t3.th=โง่,ไร้ค่า
-lex.t3.vi=đồ ngu,đồ vô dụng
+lex.t3.vi=đồ ngu,đồ vô dụng,thằng ngu,óc chó
+lex.t3.ms=bodoh,bangang,sial
+lex.t3.id=goblok,tolol,bego
 
 # ---- Allow-list (removed before lexicon matching) ------------------------------
-lex.allow=scunthorpe,assessment,assassin,cockpit,shitake,shiitake,dickens,penistone,apigee,gemini,model armor,paw patrol
+lex.allow=scunthorpe,assessment,assassin,cockpit,shitake,shiitake,dickens,penistone,middlesex,cockburn,apigee,gemini,model armor,paw patrol
 
 # ---- Custom business deny-list: term|SEVERITY (BLOCK or FLAG) -------------------
-deny.terms=project titan|BLOCK,competitorx|FLAG
+deny.terms=project titan|BLOCK,project falcon|BLOCK,competitorx|FLAG,internal pricing sheet|FLAG

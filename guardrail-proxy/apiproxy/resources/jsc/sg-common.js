@@ -11,8 +11,10 @@
 var SG = (function () {
   'use strict';
 
-  var ZERO_WIDTH = { 0x00AD: 1, 0x180E: 1, 0x200B: 1, 0x200C: 1, 0x200D: 1, 0x200E: 1, 0x200F: 1,
-                     0x202A: 1, 0x202B: 1, 0x202C: 1, 0x202D: 1, 0x202E: 1, 0x2060: 1, 0xFEFF: 1 };
+  var ZERO_WIDTH = { 0x00AD: 1, 0x034F: 1, 0x115F: 1, 0x1160: 1, 0x180E: 1, 0x200B: 1, 0x200C: 1,
+                     0x200D: 1, 0x200E: 1, 0x200F: 1, 0x202A: 1, 0x202B: 1, 0x202C: 1, 0x202D: 1,
+                     0x202E: 1, 0x2060: 1, 0x2061: 1, 0x2062: 1, 0x2063: 1, 0x2064: 1, 0x2066: 1,
+                     0x2067: 1, 0x2068: 1, 0x2069: 1, 0x3164: 1, 0xFEFF: 1, 0xFFA0: 1 };
   // Cyrillic / Greek look-alikes (lower-case) -> Latin
   var HOMOGLYPHS = { 0x0430: 'a', 0x0435: 'e', 0x043E: 'o', 0x0440: 'p', 0x0441: 'c', 0x0445: 'x',
                      0x0443: 'y', 0x0456: 'i', 0x0458: 'j', 0x0455: 's', 0x04CF: 'l',
@@ -28,14 +30,27 @@ var SG = (function () {
     pii: 'Request blocked: sensitive personal data detected.',
     structural_abuse: 'Request blocked: malformed, oversized or obfuscated payload.',
     business_denylist: 'Request blocked: restricted term detected.',
+    malicious_url: 'Request blocked: suspicious or malicious URL detected.',
     escalation: 'Request blocked: multiple suspicious signals detected.'
   };
 
+  // Unicode "tag" characters (U+E0020-U+E007E, surrogate pair 0xDB40 + 0xDC20-0xDC7E) are invisible
+  // but map 1:1 to ASCII - a known way to smuggle hidden instructions to an LLM ("ASCII smuggling").
+  // normalize() decodes them back to visible ASCII (so every rule sees the hidden text) and counts them.
   function normalize(text) {
-    var out = [], zw = 0, ctrl = 0, i, c;
+    var out = [], zw = 0, ctrl = 0, tags = 0, i, c, lo;
     text = text || '';
     for (i = 0; i < text.length; i++) {
       c = text.charCodeAt(i);
+      if (c === 0xDB40 && i + 1 < text.length) {
+        lo = text.charCodeAt(i + 1);
+        if (lo >= 0xDC00 && lo <= 0xDC7F) {
+          tags++; i++;
+          if (lo >= 0xDC20 && lo <= 0xDC7E) { out.push(String.fromCharCode(lo - 0xDC00)); }
+          continue;
+        }
+      }
+      if (c >= 0xFE00 && c <= 0xFE0D) { zw++; continue; }  // variation selectors (keep FE0E/FE0F text/emoji style)
       if (ZERO_WIDTH[c]) { zw++; continue; }
       if (c < 0x20 && c !== 0x0A && c !== 0x09 && c !== 0x0D) { ctrl++; continue; }
       if (c >= 0xFF01 && c <= 0xFF5E) { c -= 0xFEE0; }       // full-width ASCII -> ASCII
@@ -47,7 +62,7 @@ var SG = (function () {
       var m = HOMOGLYPHS[lower.charCodeAt(i)];
       res.push(m ? m : lower.charAt(i));
     }
-    return { text: res.join('').replace(/\s+/g, ' ').replace(/^ | $/g, ''), zeroWidth: zw, control: ctrl };
+    return { text: res.join('').replace(/\s+/g, ' ').replace(/^ | $/g, ''), zeroWidth: zw, control: ctrl, tags: tags };
   }
 
   // Leetspeak fold + collapse repeated letters. Applied identically to text and lexicon terms.
@@ -74,7 +89,7 @@ var SG = (function () {
 
   // getProp(key) -> property value string (propertyset.sg.<key>)
   function loadLexicon(getProp) {
-    var langs = ['en', 'zh', 'ja', 'th', 'vi'], tiers = ['t1', 't2', 't3'], lex = { allow: [], deny: [] };
+    var langs = ['en', 'zh', 'ja', 'ko', 'th', 'vi', 'ms', 'id'], tiers = ['t1', 't2', 't3'], lex = { allow: [], deny: [] };
     var ti, li, terms, k;
     for (ti = 0; ti < tiers.length; ti++) {
       lex[tiers[ti]] = { ascii: [], uni: [] };
@@ -216,6 +231,9 @@ var SG = (function () {
     }
     if (m.zeroWidth > m.maxZeroWidth || m.control > m.maxControl) {
       hits.push({ id: 'SG-STR-004', cat: 'structural_abuse', sev: 'BLOCK' });
+    }
+    if (m.tags > 0) {
+      hits.push({ id: 'SG-STR-008', cat: 'structural_abuse', sev: 'BLOCK' });
     }
     return hits;
   }

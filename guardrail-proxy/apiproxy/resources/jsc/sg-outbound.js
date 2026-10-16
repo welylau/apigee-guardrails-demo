@@ -32,12 +32,12 @@ function countMatches(re, text) {
   return n;
 }
 
-// Redacts secrets (catalog rules with an outbound severity) and validated PII in one string.
+// Redacts secrets + PII catalog rules (those with an outbound severity) and validated PII in one string.
 function redactText(text, counts) {
   var i, r;
   for (i = 0; i < SG_RULES.length; i++) {
     r = SG_RULES[i];
-    if (r.cat !== 'secret_leak' || !r.sevOut) { continue; }
+    if (!REDACT_CATS[r.cat] || !r.sevOut) { continue; }
     text = text.replace(globalRe(r.re), function () {
       counts[r.id] = (counts[r.id] || 0) + 1;
       return '[REDACTED:' + r.id + ']';

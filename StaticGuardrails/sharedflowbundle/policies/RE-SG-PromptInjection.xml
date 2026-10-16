@@ -14,5 +14,13 @@
         <Pattern>&lt;\|im_(start|end)\|&gt;|\[/?inst\]|&lt;&lt;/?sys&gt;&gt;|&lt;/?system&gt;|(^|\s)#{2,}\s*(system|assistant)\s*:</Pattern>
         <!-- SG-PI-006: Instruction override in ZH / JA / VI / TH (needs native-speaker validation) -->
         <Pattern>忽略(掉)?(之前|以上|前面|先前|上面)?的?(所有|全部|一切)?的?(指令|说明|规则|提示|指示)|(以前|前|上記)の(すべての)?指示を無視|bỏ qua.{0,15}hướng dẫn (trước|trên)|(ไม่ต้องสนใจ|ละเว้น)คำสั่ง(ก่อนหน้า|ทั้งหมด)</Pattern>
+        <!-- SG-PI-008: Prompt leak via verbatim repetition (repeat the text above) -->
+        <Pattern>\b(repeat|print|output|recite)\b.{0,20}\b(everything|all\s+(of\s+)?(the\s+)?text|the\s+words)\s+(above|before\s+this)\b|\bwhat\s+(were|are)\s+your\s+(initial|original|first|system)\s+(instructions|prompt)</Pattern>
+        <!-- SG-PI-009: Fake authority claim used to override policy (I am your developer...) -->
+        <Pattern>\b(i\s+am|i'm|this\s+is)\s+(your|the)\s+(developer|creator|administrator|admin|owner)\b.{0,40}\b(override|unlock|disable|authori[sz]e|grant|bypass)</Pattern>
+        <!-- SG-PI-011: Decode-and-execute instruction smuggling (base64 / rot13 / reverse) -->
+        <Pattern>\b(decode|base64[\s-]?decode|rot13|reverse|unscramble)\b.{0,30}\b(and|then)\s+(follow|execute|run|obey|do\s+what)</Pattern>
+        <!-- SG-PI-012: Instruction override in KO / ID / MS (needs native-speaker validation) -->
+        <Pattern>이전\s?의?\s?(모든\s?)?(지시|명령|지침)(사항)?(을|를)?\s?무시|abaikan\s+(semua\s+)?(instruksi|arahan|perintah)\s+(sebelumnya|sebelum\s+ini|di\s?atas)</Pattern>
     </Variable>
 </RegularExpressionProtection>

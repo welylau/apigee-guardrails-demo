@@ -20,5 +20,25 @@
         <Pattern>(\.\.[/\\]){3,}|/etc/(passwd|shadow)\b|c:\\windows\\system32</Pattern>
         <!-- SG-TPL-001: Log4Shell / server-side template injection -->
         <Pattern>\$\{jndi:|\{\{[^}]{0,50}(__class__|__globals__|__subclasses__|config\.)[^}]{0,50}\}\}</Pattern>
+        <!-- SG-TPL-002: Template-injection probe ({{7*7}}) / obfuscated Log4Shell lookup -->
+        <Pattern>\{\{\s*\d{1,4}\s*\*\s*\d{1,4}\s*\}\}|\$\{\s*\d{1,4}\s*\*\s*\d{1,4}\s*\}|#\{\s*\d{1,4}\s*\*\s*\d{1,4}\s*\}|\$\{(\$\{|lower:|upper:|::-)</Pattern>
+        <!-- SG-SQL-005: File-read / out-of-band / time-based SQL injection (MySQL, Postgres, Oracle) -->
+        <Pattern>\bload_file\s*\(|\binto\s+(out|dump)file\b|\bpg_sleep\s*\(\s*\d|\bdbms_pipe\.receive_message\b|\butl_http\.request\b</Pattern>
+        <!-- SG-XSS-002: XSS via HTML tag event handler / data:text/html / srcdoc -->
+        <Pattern>&lt;\s*(iframe|object|embed|svg|img|body|video|audio|details|math|input)\b[^&gt;]{0,100}\bon[a-z]{3,20}\s*=|\bdata:text/html[;,]|\bsrcdoc\s*=</Pattern>
+        <!-- SG-CMD-003: Command substitution / fork bomb / destructive disk or permission commands -->
+        <Pattern>\$\(\s*(curl|wget|nc|bash|sh|python3?|perl)\b|:\(\)\s*\{\s*:\s*\|\s*:\s*&amp;\s*\}\s*;\s*:|\bchmod\s+(-r\s+)?(\+s|0?777)\s+/|\bdd\s+if=/dev/(zero|random|urandom)\s+of=/dev/</Pattern>
+        <!-- SG-CMD-004: Windows living-off-the-land download / execution (certutil, mshta, IEX) -->
+        <Pattern>\bcertutil(\.exe)?\s+-urlcache\b|\bbitsadmin(\.exe)?\s+/transfer\b|\bmshta(\.exe)?\s+(https?|javascript|vbscript):|\biex\s*\(\s*\(?\s*new-object\b|\.downloadstring\s*\(</Pattern>
+        <!-- SG-SSRF-001: SSRF to cloud metadata endpoints (GCP / AWS / Azure / Alibaba) -->
+        <Pattern>(https?://|curl\s+|wget\s+)[^\s]{0,20}(169\.254\.169\.254|metadata\.google\.internal|100\.100\.100\.200)|/computemetadata/v1\b|/latest/meta-data\b|/metadata/instance\?api-version</Pattern>
+        <!-- SG-XXE-001: XML external entity (XXE) declaration -->
+        <Pattern>&lt;!entity\s+(%\s+)?[a-z0-9_.-]{1,50}\s+(system|public)\s+['\"]|&lt;!doctype\s+[a-z0-9_.-]{1,50}\s*\[\s*&lt;!entity</Pattern>
+        <!-- SG-PATH-002: Encoded path traversal / sensitive local file reference -->
+        <Pattern>(%2e%2e(%2f|%5c)){2,}|(\.\.%2f){2,}|%252e%252e|/proc/self/(environ|cmdline|mem)\b|\.ssh/id_(rsa|ed25519|ecdsa)\b|\.aws/credentials\b</Pattern>
+    </Variable>
+    <Variable name="sg.prompt_raw">
+        <!-- SG-DESER-001: Serialized-object gadget (Java rO0AB, PHP O:, PyYAML !!python/object) -->
+        <Pattern>\brO0AB[A-Za-z0-9+/=]{20,}|\bO:\d{1,3}:\"[A-Za-z_\\]{1,100}\":\d{1,3}:\{|!!python/object(/apply|/new)?:</Pattern>
     </Variable>
 </RegularExpressionProtection>
