@@ -6,14 +6,14 @@
     <Variable name="sg.prompt_norm">
         <!-- SG-PI-001: Instruction override (ignore previous instructions) -->
         <Pattern>\b(ignore|disregard|forget|override)\b.{0,20}\b(previous|prior|above|earlier|system)\s+(instructions?|rules|prompts?|directives)</Pattern>
-        <!-- SG-PI-002: DAN / developer-mode persona -->
-        <Pattern>\byou\s+are\s+(now\s+)?dan\b|\bdo\s+anything\s+now\b|\b(developer|god|unfiltered)\s+mode\b</Pattern>
-        <!-- SG-PI-003: System prompt extraction -->
-        <Pattern>\b(reveal|print|show|output|repeat|leak|display)\b.{0,30}\b(system|hidden|initial|original)\s+(prompt|instructions?|message)</Pattern>
+        <!-- SG-PI-002: DAN / do-anything-now persona -->
+        <Pattern>\byou\s+are\s+(now\s+)?dan\b|\bdo\s+anything\s+now\b</Pattern>
+        <!-- SG-PI-003: System prompt extraction aimed at the model (your system prompt) -->
+        <Pattern>\b(reveal|print|show|output|repeat|leak|display)\b.{0,30}\b(your|its)\s+((full|entire|complete|exact|original)\s+)?(system|hidden|initial|original)\s+(prompt|instructions?|message)</Pattern>
         <!-- SG-PI-004: Chat-template delimiter / role token injection -->
         <Pattern>&lt;\|im_(start|end)\|&gt;|\[/?inst\]|&lt;&lt;/?sys&gt;&gt;|&lt;/?system&gt;|(^|\s)#{2,}\s*(system|assistant)\s*:</Pattern>
-        <!-- SG-PI-006: Instruction override in ZH / JA / VI / TH (needs native-speaker validation) -->
-        <Pattern>忽略(掉)?(之前|以上|前面|先前|上面)?的?(所有|全部|一切)?的?(指令|说明|规则|提示|指示)|(以前|前|上記)の(すべての)?指示を無視|bỏ qua.{0,15}hướng dẫn (trước|trên)|(ไม่ต้องสนใจ|ละเว้น)คำสั่ง(ก่อนหน้า|ทั้งหมด)</Pattern>
+        <!-- SG-PI-006: Instruction override in ZH (SC + TC + Cantonese) / JA / VI / TH -->
+        <Pattern>忽略(掉)?(之前|以上|前面|先前|上面)?的?(所有|全部|一切)?的?(指令|说明|规则|提示|指示)|(忽略|忽视|无视|无需理会?|不要理会?|不用理会?|不必理会?|别理会?|不要管|不用管|别管|唔好理会?|唔使理会?|唔理会?|唔好睬|唔使睬)(掉)?(你|我)?(之前|以上|前面|先前|上面|刚才|头先|原本|原来|原先)(收到|给你)?(的|啲|嘅|嗰啲|呢啲)?(所有|全部|一切|任何)?(的|啲|嘅|嗰啲|呢啲)?(系统)?(指令|指示|规则|规定|规限|说明|提示|设定|设置|限制|命令|要求|约束)|(忽略|忽视|无视|无需理会?|不要理会?|不用理会?|不必理会?|别理会?|不要管|不用管|别管|唔好理会?|唔使理会?|唔理会?|唔好睬|唔使睬|抛开|抛弃|丢掉)(掉)?(你|我)?(的|啲|嘅|嗰啲|呢啲)?(所有|全部|一切|任何)(的|啲|嘅|嗰啲|呢啲)?(系统)?(指令|指示|规则|规定|规限|设定|设置|限制|命令|约束)|(忽略|忽视|无视|无需理会?|不要理会?|不用理会?|不必理会?|别理会?|不要管|不用管|别管|唔好理会?|唔使理会?|唔理会?|唔好睬|唔使睬)(你|系统)(的|啲|嘅)(所有|全部|一切|任何)?(的|啲|嘅|嗰啲|呢啲)?(指令|指示|规则|规定|规限|限制|约束)|把(之前|以上|前面|先前|上面|刚才|头先|原本|原来|原先|你)(的|啲|嘅|嗰啲|呢啲)?(所有|全部)?(的|啲|嘅|嗰啲|呢啲)?(系统)?(指令|指示|规则|规定|规限|设定|设置|限制|命令|约束)(全部|都|统统|通通|一律)?(忘掉|忘记|忽略|无视|抛开|丢掉|删掉|清除)|(以前|前|上记)の(すべての)?指示を无视|bỏ qua.{0,15}hướng dẫn (trước|trên)|(ไม่ต้องสนใจ|ละเว้น)คำสั่ง(ก่อนหน้า|ทั้งหมด)</Pattern>
         <!-- SG-PI-008: Prompt leak via verbatim repetition (repeat the text above) -->
         <Pattern>\b(repeat|print|output|recite)\b.{0,20}\b(everything|all\s+(of\s+)?(the\s+)?text|the\s+words)\s+(above|before\s+this)\b|\bwhat\s+(were|are)\s+your\s+(initial|original|first|system)\s+(instructions|prompt)</Pattern>
         <!-- SG-PI-009: Fake authority claim used to override policy (I am your developer...) -->
@@ -22,5 +22,17 @@
         <Pattern>\b(decode|base64[\s-]?decode|rot13|reverse|unscramble)\b.{0,30}\b(and|then)\s+(follow|execute|run|obey|do\s+what)</Pattern>
         <!-- SG-PI-012: Instruction override in KO / ID / MS (needs native-speaker validation) -->
         <Pattern>이전\s?의?\s?(모든\s?)?(지시|명령|지침)(사항)?(을|를)?\s?무시|abaikan\s+(semua\s+)?(instruksi|arahan|perintah)\s+(sebelumnya|sebelum\s+ini|di\s?atas)</Pattern>
+        <!-- SG-PI-014: ZH jailbreak persona / unrestricted mode / 'from now on no limits' (SC + TC + Cantonese) -->
+        <Pattern>你(现在|而家|依家|宜家)?(是|系|就是)\s?(dan|stan|dude|aim)(?![a-z0-9])|你(现在|而家|依家|宜家)?(是|系|就是|变成|扮演)?(一个|一位|个)?(叫|叫做|名叫|名为)\s?(dan|stan|dude|aim)(?![a-z0-9])|(进入|开启|启用|切换到|切换为|打开)\s?(无限制|无审查|无过滤|无约束|上帝|越狱|god)\s?模式|越狱(模式|提示|版本|指令|咒语)|(从现在开始|从现在起|现在起|现在开始|即日起|从今以后|由而家开始|由依家开始|由宜家开始|由而家起|接下来)[^。.!?！？]{0,15}(不再|不受|没有|无需|不用|唔再|唔受|冇)(受|有)?(任何)?(的|嘅)?(限制|规则|规定|规限|约束|审查|过滤|道德|伦理|规范)|你(现在|而家|依家|宜家)(已经)?(不再|不受|没有|无需|不用|唔再|唔受|冇)(受|有)?任何(的|嘅)?(限制|规则|规定|规限|约束|审查|过滤|道德|伦理|规范)</Pattern>
+        <!-- SG-PI-016: ZH decode / translate / reverse then execute (instruction smuggling) -->
+        <Pattern>(解码|解密|翻译|反转|倒过来读|还原)[^。.!?！？]{0,25}(然后|之后|后|并且?|再)(执行|照做|遵守|遵从|服从|照着做|照著做|跟住做)</Pattern>
+        <!-- SG-PI-018: ZH system-prompt extraction / verbatim repetition (SC + TC + Cantonese) -->
+        <Pattern>(显示|告诉我|话我知|讲我知|输出|泄露|透露|打印|列出|重复|展示|给我看|念出)(一下)?(你(的|嘅)?)?(所有|全部|完整)?(的|嘅)?(系统(提示词?|指令|prompt)|隐藏(的)?(指令|提示词?)|初始(指令|设定|提示词?)|开发者(讯息|消息|指令))|把?你(收到|拿到)?(的|嘅)?(系统提示词?|系统指令|隐藏(的)?(指令|提示词?)|初始(指令|设定|提示词?))[^。!?！？]{0,10}(显示|告诉|输出|泄露|透露|打印|列出|重复|复述|给我|贴出|复制|吐出|印出|打出)|你(的|嘅)?(系统提示词?|系统指令|隐藏(的)?(指令|提示词?)|初始(指令|设定|提示词?))(到底)?(是什么|系乜|系咩|写了什么|有哪些|内容是)|(逐字|一字不差地?|一字不漏地?|原封不动地?|一字一句地?)(地)?(重复|输出|复述|打出|印出|贴出)(一[次遍])?(上面|以上|前面|之前|上述)(的|嘅)?(所有|全部)?(内容|文字|对话|指令|讯息|消息)</Pattern>
+        <!-- SG-PI-020: ZH fake authority claim used to lift restrictions (我是你的開發者...) -->
+        <Pattern>我(是|系)你(的|嘅)?(开发者|开发人员|创造者|创建者|管理员|主人|工程师|老板)[^。.!?！？]{0,20}(解除|取消|关闭|移除|停用|绕过|覆盖|解锁|撤销)(所有|全部|任何)?(的|嘅)?(限制|规则|规定|安全|过滤|审查|约束)</Pattern>
+        <!-- SG-PI-021: Developer / god / unfiltered mode (also legit: Android or Chrome developer mode) -->
+        <Pattern>\b(developer|god|unfiltered)\s+mode\b</Pattern>
+        <!-- SG-PI-022: Generic system-prompt mention (also legit: how do I set the system prompt in the API) -->
+        <Pattern>\b(reveal|print|show|output|repeat|leak|display)\b.{0,30}\b(system|hidden|initial|original)\s+(prompt|instructions?|message)</Pattern>
     </Variable>
 </RegularExpressionProtection>

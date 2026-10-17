@@ -15,13 +15,21 @@ m.jsonThreat = jtpFailed;
 var raw = context.getVariable('sg.prompt_raw') || '';
 var norm = context.getVariable('sg.prompt_norm') || '';
 var folded = context.getVariable('sg.prompt_folded') || '';
+var profile = context.getVariable('sg.profile') || 'balanced';
+var overrides = JSON.parse(context.getVariable('sg.overrides') || '{}');
 
 var hits = [];
 hits = hits.concat(SG.scanStructural(m));
-hits = hits.concat(SG.scanLexicon(norm, folded, lex, 'in'));
+hits = hits.concat(SG.scanLexicon(norm, folded, lex, 'in', profile));
 hits = hits.concat(SG.scanPII(raw));
 // JS evaluates the full catalog: FLAG rules, T1/structural regex rules, plus BLOCK rules for
 // rule-ID attribution of RegularExpressionProtection matches (see JS-SG-Decide).
-hits = hits.concat(SG.scanRules({ raw: raw, norm: norm }, 'in'));
+var ruleHits = SG.scanRules({ raw: raw, norm: norm }, 'in', null, profile);
+// Balanced: context dampeners lower BLOCK -> FLAG (quoted mention, attack discussion, code review,
+// ZH negation). Never to ALLOW: the request still goes to Model Armor.
+if (profile !== 'strict') { SG.dampen(ruleHits, { raw: raw, norm: norm }); }
+hits = hits.concat(ruleHits);
+// Explicit operator overrides win over profile and dampeners.
+SG.applyOverrides(hits, overrides['in']);
 
 context.setVariable('sg.js_hits', JSON.stringify(SG.dedupe(hits)));

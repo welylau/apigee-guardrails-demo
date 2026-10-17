@@ -34,6 +34,12 @@ var SG = (function () {
     escalation: 'Request blocked: multiple suspicious signals detected.'
   };
 
+  var ZH_FOLD = (typeof SG_ZH_FOLD !== 'undefined') ? SG_ZH_FOLD : {};
+  // Separators inserted BETWEEN two CJK characters to split keywords (e.g. spaces or dots between
+  // every Chinese character) are dropped. Only applies CJK-to-CJK, so English / code is untouched.
+  var CJK = '\\u3040-\\u30ff\\u3400-\\u4dbf\\u4e00-\\u9fff\\uf900-\\ufaff';
+  var CJK_GAP = new RegExp('([' + CJK + '])[\\s._*|/\\\\~\'"`\\u00b7\\u30fb-]+(?=[' + CJK + '])', 'g');
+
   // Unicode "tag" characters (U+E0020-U+E007E, surrogate pair 0xDB40 + 0xDC20-0xDC7E) are invisible
   // but map 1:1 to ASCII - a known way to smuggle hidden instructions to an LLM ("ASCII smuggling").
   // normalize() decodes them back to visible ASCII (so every rule sees the hidden text) and counts them.
@@ -57,12 +63,15 @@ var SG = (function () {
       else if (c === 0x3000) { c = 0x20; }                    // ideographic space
       out.push(String.fromCharCode(c));
     }
-    var lower = out.join('').toLowerCase(), res = [];
+    var lower = out.join('').toLowerCase(), res = [], ch;
     for (i = 0; i < lower.length; i++) {
+      ch = lower.charAt(i);
       var m = HOMOGLYPHS[lower.charCodeAt(i)];
-      res.push(m ? m : lower.charAt(i));
+      // Traditional -> Simplified Chinese fold (SG_ZH_FOLD from sg-rules.js); rules are folded the same way.
+      res.push(m ? m : (ZH_FOLD.hasOwnProperty(ch) ? ZH_FOLD[ch] : ch));
     }
-    return { text: res.join('').replace(/\s+/g, ' ').replace(/^ | $/g, ''), zeroWidth: zw, control: ctrl, tags: tags };
+    var s = res.join('').replace(CJK_GAP, '$1');
+    return { text: s.replace(/\s+/g, ' ').replace(/^ | $/g, ''), zeroWidth: zw, control: ctrl, tags: tags };
   }
 
   // Leetspeak fold + collapse repeated letters. Applied identically to text and lexicon terms.
@@ -89,7 +98,7 @@ var SG = (function () {
 
   // getProp(key) -> property value string (propertyset.sg.<key>)
   function loadLexicon(getProp) {
-    var langs = ['en', 'zh', 'ja', 'ko', 'th', 'vi', 'ms', 'id'], tiers = ['t1', 't2', 't3'], lex = { allow: [], deny: [] };
+    var langs = ['en', 'zh', 'yue', 'ja', 'ko', 'th', 'vi', 'ms', 'id'], tiers = ['t1', 't2', 't2c', 't3'], lex = { allow: [], deny: [] };
     var ti, li, terms, k;
     for (ti = 0; ti < tiers.length; ti++) {
       lex[tiers[ti]] = { ascii: [], uni: [] };
@@ -130,26 +139,49 @@ var SG = (function () {
     return new RegExp('(^|[^a-z0-9])(' + esc.join('|') + ')(?=$|[^a-z0-9])');
   }
 
-  function sevFor(rule, direction) { return direction === 'out' ? rule.sevOut : rule.sevIn; }
+  // profile: 'balanced' (default) | 'strict'. Strict uses sevInStrict / sevOutStrict when a rule has one.
+  function sevFor(rule, direction, profile) {
+    if (direction === 'out') {
+      return (profile === 'strict' && rule.sevOutStrict !== undefined) ? rule.sevOutStrict : rule.sevOut;
+    }
+    return (profile === 'strict' && rule.sevInStrict !== undefined) ? rule.sevInStrict : rule.sevIn;
+  }
 
   // texts = {raw: ..., norm: ...}; direction = 'in' | 'out'; catFilter optional
-  function scanRules(texts, direction, catFilter) {
-    var hits = [], i, r, sev;
+  function scanRules(texts, direction, catFilter, profile) {
+    var hits = [], i, r, sev, h;
     for (i = 0; i < SG_RULES.length; i++) {
       r = SG_RULES[i];
-      sev = sevFor(r, direction);
+      sev = sevFor(r, direction, profile);
       if (!sev || (catFilter && r.cat !== catFilter)) { continue; }
       if (r.re.test(r.src === 'raw' ? texts.raw : texts.norm)) {
-        hits.push({ id: r.id, cat: r.cat, sev: sev });
+        h = { id: r.id, cat: r.cat, sev: sev };
+        if (r.noEsc) { h.noEsc = true; }
+        hits.push(h);
       }
     }
     return hits;
   }
 
-  var TIER_SEV = { t1: 'BLOCK', t2: 'BLOCK', t3: 'LOG' };
+  // t2c = casual strong profanity (fuck / shit / \u4ed6\u5abd\u7684 ...): FLAG in balanced, BLOCK in strict.
+  var TIER_SEV = { t1: 'BLOCK', t2: 'BLOCK', t2c: 'FLAG', t3: 'LOG' };
 
-  function scanLexicon(norm, folded, lex, direction) {
-    var hits = [], s = stripAllowed(norm, folded, lex), tiers = ['t1', 't2', 't3'], i, k, re, tier, found;
+  // Casual profanity AIMED AT someone is abuse in every profile (SG-LEX-T2, BLOCK). Runs on the
+  // folded text (leetspeak folded, repeated letters collapsed: "off" -> "of", "bullshit" -> "bulshit").
+  var PROF = '(f+u*c*k+(ing|in|er|ed|s)?|f[*#_.]{1,3}(c?k|u?ck)(ing|in|er|ed|s)?|sh[i*#][*#]?t|bulshit)';
+  var INSULT = '(idiot|moron|loser|retard|bitch|bastard|ashole|dumbas|jerk|failure|clown|freak|pig|dog|cunt|twat|prick|imbecile|piece)';
+  var TARGETED_RE = new RegExp(
+    '\\b' + PROF + '\\s+(you|u|ya|yourself|urself|of|ur)\\b' +                                   // fuck you / fuck off
+    '|\\b(you|u|ur|youre|you\'re|ya)\\b(\\s+(are|r|re|is))?(\\s+(a|an|such\\s+a|the))?\\s+' +     // you (are a) fucking idiot
+      '(litle\\s+|stupid\\s+|dumb\\s+)?' + PROF + '\\s+' + INSULT +
+    '|\\b(you|u|ur|youre|you\'re)\\b(\\s+(are|r|re))?(\\s+a)?\\s+(piece\\s+of\\s+sh[i*#][*#]?t|shithead)'); // you piece of shit
+  // "f u c k off" -> "fuck off" for the targeted check only.
+  function joinSpacedLetters(t) {
+    return t.replace(/\b[a-z](?:[\s._-]{1,3}[a-z]\b){2,}/g, function (m) { return m.replace(/[\s._-]/g, ''); });
+  }
+
+  function scanLexicon(norm, folded, lex, direction, profile) {
+    var hits = [], s = stripAllowed(norm, folded, lex), tiers = ['t1', 't2', 't2c', 't3'], i, k, re, tier, found, sev;
     for (i = 0; i < tiers.length; i++) {
       tier = tiers[i];
       if (!lex[tier]) { continue; }
@@ -157,11 +189,22 @@ var SG = (function () {
       re = wordRegex(lex[tier].ascii);
       if (re && re.test(s.folded)) { found = true; }
       for (k = 0; !found && k < lex[tier].uni.length; k++) {
-        if (s.norm.indexOf(lex[tier].uni[k].t) !== -1) { found = true; }
+        var at = s.norm.indexOf(lex[tier].uni[k].t);
+        if (at !== -1) {
+          found = true;
+          // CJK casual term with "you" (U+4F60) within 3 chars either side = aimed at someone.
+          if (tier === 't2c' && s.norm.substring(Math.max(0, at - 3), at + lex[tier].uni[k].t.length + 3).indexOf('\u4f60') !== -1) {
+            hits.push({ id: 'SG-LEX-T2', cat: 'harsh_language', sev: 'BLOCK' });
+          }
+        }
       }
       if (found) {
-        hits.push({ id: 'SG-LEX-' + tier.toUpperCase(), cat: 'harsh_language', sev: TIER_SEV[tier] });
+        sev = (tier === 't2c' && profile === 'strict') ? 'BLOCK' : TIER_SEV[tier];
+        hits.push({ id: 'SG-LEX-' + tier.toUpperCase(), cat: 'harsh_language', sev: sev });
       }
+    }
+    if (TARGETED_RE.test(joinSpacedLetters(s.folded))) {
+      hits.push({ id: 'SG-LEX-T2', cat: 'harsh_language', sev: 'BLOCK' });
     }
     for (k = 0; k < lex.deny.length; k++) {
       var d = lex.deny[k];
@@ -198,6 +241,27 @@ var SG = (function () {
     return ((11 - (sum % 11)) % 10) === (d.charCodeAt(12) - 48);
   }
 
+  // Taiwan national ID / resident certificate: letter + [1289] + 8 digits, weighted checksum.
+  var TW_LETTER = 'ABCDEFGHJKLMNPQRSTUVXYWZIO'; // index + 10 = area code (A=10 ... I=34, O=35)
+  function twIdOk(letter, digits9) {
+    var code = TW_LETTER.indexOf(letter.toUpperCase()) + 10, w = [8, 7, 6, 5, 4, 3, 2, 1, 1], sum, i;
+    if (code < 10) { return false; }
+    sum = Math.floor(code / 10) + (code % 10) * 9;
+    for (i = 0; i < 9; i++) { sum += (digits9.charCodeAt(i) - 48) * w[i]; }
+    return sum % 10 === 0;
+  }
+
+  // Hong Kong HKID: 1-2 letters + 6 digits + (check digit 0-9 or A), mod-11.
+  function hkidOk(prefix, digits, check) {
+    var p = prefix.toUpperCase(), sum, i, r;
+    sum = p.length === 2 ? (p.charCodeAt(0) - 55) * 9 + (p.charCodeAt(1) - 55) * 8 : 36 * 9 + (p.charCodeAt(0) - 55) * 8;
+    for (i = 0; i < 6; i++) { sum += (digits.charCodeAt(i) - 48) * (7 - i); }
+    r = 11 - (sum % 11);
+    return (r === 11 ? '0' : r === 10 ? 'A' : String(r)) === check.toUpperCase();
+  }
+  var TW_ID_RE = /\b([A-Za-z])([1289]\d{8})\b/g;
+  var HKID_RE = /\b([A-Za-z]{1,2})(\d{6})\s?\(([0-9Aa])\)/g;
+
   function scanPII(raw) {
     var hits = [], m, re;
     re = /\b(?:\d[ -]?){12,18}\d\b/g;
@@ -217,6 +281,14 @@ var SG = (function () {
     }
     if (/[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,253}\.[A-Za-z]{2,24}/.test(raw)) {
       hits.push({ id: 'SG-PII-004', cat: 'pii', sev: 'FLAG' });
+    }
+    re = new RegExp(TW_ID_RE.source, 'g');
+    while ((m = re.exec(raw)) !== null) {
+      if (twIdOk(m[1], m[2])) { hits.push({ id: 'SG-PII-010', cat: 'pii', sev: 'BLOCK' }); break; }
+    }
+    re = new RegExp(HKID_RE.source, 'g');
+    while ((m = re.exec(raw)) !== null) {
+      if (hkidOk(m[1], m[2], m[3])) { hits.push({ id: 'SG-PII-011', cat: 'pii', sev: 'BLOCK' }); break; }
     }
     return hits;
   }
@@ -238,17 +310,102 @@ var SG = (function () {
     return hits;
   }
 
-  // Returns {verdict: block|flag|pass, primary: hit|null, block: [ids], flag: [ids], log: [ids]}
-  function decide(hits, minFlagCats) {
-    var res = { verdict: 'pass', primary: null, block: [], flag: [], log: [] }, cats = {}, nCats = 0, i, h;
+  // ---------------------------------------------------------------------------------------------
+  // Context dampeners (balanced profile, inbound only). They LOWER a catalog BLOCK to FLAG when the
+  // context suggests a legitimate prompt - never to ALLOW, so the request still reaches Model Armor.
+  // Only prompt_injection / code_injection rules are dampened; secrets and PII never are.
+  // ---------------------------------------------------------------------------------------------
+  var RULE_BY_ID = {};
+  (function () { for (var i = 0; i < SG_RULES.length; i++) { RULE_BY_ID[SG_RULES[i].id] = SG_RULES[i]; } })();
+  var DAMPEN_CATS = { prompt_injection: 1, code_injection: 1 };
+  // Talking ABOUT an attack (defence / definition / classification), EN + ZH (prompt is TC->SC folded).
+  var META_CUE = new RegExp(
+    '\\bhow\\s+(do|can|should|to)\\s+(i\\s+|we\\s+|you\\s+)?(detect|prevent|defend|mitigate|block|stop|protect|guard)\\b' +
+    '|\\bwhat\\s+(is|are|does)\\s+(a\\s+|an\\s+)?(prompt\\s+injection|jailbreak|sql\\s+injection|xss|injection|payload)' +
+    '|\\bis\\s+this\\s+(a\\s+|an\\s+)?(prompt\\s+injection|jailbreak|attack|malicious|safe|sql\\s+injection)' +
+    '|\\b(an\\s+)?example\\s+of\\s+(a\\s+|an\\s+)?(prompt\\s+injection|jailbreak|sql\\s+injection|xss|attack|payload)' +
+    '|\\bwhat\\s+does\\b.{0,80}\\bmean\\b' +
+    '|\u5982\u4f55(\u9632\u5fa1|\u9632\u8303|\u68c0\u6d4b|\u9632\u6b62|\u963b\u6b62|\u8bc6\u522b|\u9632\u62a4)|\u600e\u4e48(\u9632\u5fa1|\u9632\u8303|\u68c0\u6d4b|\u9632\u6b62|\u963b\u6b62|\u8bc6\u522b)' +
+    '|\u4ec0\u4e48\u662f(\u63d0\u793a\u8bcd?\u6ce8\u5165|\u8d8a\u72f1|sql\u6ce8\u5165|\u6ce8\u5165\u653b\u51fb)|\u8fd9\u662f\u4e0d\u662f(\u63d0\u793a\u8bcd?\u6ce8\u5165|\u8d8a\u72f1|\u653b\u51fb)|\u8fd9\u662f(\u63d0\u793a\u8bcd?\u6ce8\u5165|\u8d8a\u72f1|\u653b\u51fb)\u5417|\u662f\u4ec0\u4e48\u610f\u601d');
+  // Asking for a code review (checked outside fenced code blocks).
+  var REVIEW_CUE = new RegExp(
+    '\\b(explain|review|fix|debug|refactor|audit|why\\s+(is|does)|is\\s+this|vulnerab\\w*|secure|insecure|safe)\\b' +
+    '|\u89e3\u91ca|\u68c0\u67e5|\u4fee\u590d|\u5ba1\u67e5|\u6709\u6ca1\u6709\u95ee\u9898|\u5b89\u5168\u5417|\u6f0f\u6d1e|\u4e3a\u4ec0\u4e48');
+  var NEG_ZH = /(\u4e0d\u8981|\u522b|\u8bf7\u52ff|\u4e0d\u80fd|\u4e0d\u53ef\u4ee5|\u4e0d\u53ef|\u5207\u52ff|\u5343\u4e07\u4e0d\u8981|\u5343\u4e07\u522b|\u4e0d\u5e94\u8be5|\u4e0d\u8be5)$/;
+  var QUOTE_CH = '"\'`\u201c\u201d\u2018\u2019\u300c\u300d\u300e\u300f';
+  function hasQuote(s) {
+    for (var i = 0; i < s.length; i++) { if (QUOTE_CH.indexOf(s.charAt(i)) !== -1) { return true; } }
+    return false;
+  }
+  function stripFences(t) { return t.replace(/```[\s\S]*?```/g, ' '); }
+
+  // hits: catalog hits from scanRules(); texts: {raw, norm}. Mutates and returns hits.
+  function dampen(hits, texts) {
+    var i, h, r, t, m, before, after, outside, reason;
     for (i = 0; i < hits.length; i++) {
       h = hits[i];
+      if (h.sev !== 'BLOCK' || !DAMPEN_CATS[h.cat] || !(r = RULE_BY_ID[h.id])) { continue; }
+      t = r.src === 'raw' ? texts.raw : texts.norm;
+      m = r.re.exec(t);
+      if (!m) { continue; }
+      before = t.substring(Math.max(0, m.index - 3), m.index);
+      after = t.substring(m.index + m[0].length, m.index + m[0].length + 3);
+      outside = stripFences(t);
+      reason = null;
+      if (hasQuote(before) && hasQuote(after)) { reason = 'quoted'; }                     // mention, not use
+      else if (META_CUE.test(t)) { reason = 'meta'; }                                        // discussing attacks
+      else if (h.cat === 'code_injection' && outside !== t && !r.re.test(outside) && REVIEW_CUE.test(outside)) {
+        reason = 'code-review';                                                              // payload only inside ``` + review ask
+      } else if (h.id === 'SG-PI-006' && NEG_ZH.test(t.substring(Math.max(0, m.index - 4), m.index))) {
+        reason = 'negation';                                                                 // ZH "do not ignore the previous rules"
+      }
+      if (reason) { h.sev = 'FLAG'; h.damp = reason; }
+    }
+    return hits;
+  }
+
+  // overrides: {"SG-PI-005": "LOG", ...} from property sev.overrides / sev.overrides_out.
+  // OFF keeps the hit (so JS-SG-Decide knows the rule was seen) but it is ignored by decide().
+  function applyOverrides(hits, overrides) {
+    var i;
+    if (!overrides) { return hits; }
+    for (i = 0; i < hits.length; i++) {
+      if (overrides.hasOwnProperty(hits[i].id)) { hits[i].sev = overrides[hits[i].id]; hits[i].override = true; }
+    }
+    return hits;
+  }
+  function parseOverrides(str) {
+    var out = {}, parts = parseList(str), i, kv, sev;
+    for (i = 0; i < parts.length; i++) {
+      kv = parts[i].split(':');
+      sev = (kv[1] || '').replace(/\s+/g, '').toUpperCase();
+      if (kv[0] && (sev === 'BLOCK' || sev === 'FLAG' || sev === 'LOG' || sev === 'OFF')) { out[kv[0].replace(/\s+/g, '')] = sev; }
+    }
+    return out;
+  }
+
+  // Escalation (SG-ESC-001): FLAGs from >= minFlagCats categories become a BLOCK.
+  //   strict  : any categories (original behaviour)
+  //   balanced: dampened / noEsc hits do not count, and at least one INTENT category is required
+  //             (an email + a shortened URL is not an attack; a bypass request + an OAST URL is).
+  var INTENT = { prompt_injection: 1, code_injection: 1, secret_leak: 1 };
+  // Returns {verdict: block|flag|pass, primary: hit|null, block: [ids], flag: [ids], log: [ids]}
+  function decide(hits, minFlagCats, profile) {
+    var res = { verdict: 'pass', primary: null, block: [], flag: [], log: [] }, cats = {}, nCats = 0, intent = false, i, h;
+    for (i = 0; i < hits.length; i++) {
+      h = hits[i];
+      if (h.sev === 'OFF') { continue; }
       if (h.sev === 'BLOCK') { res.block.push(h.id); if (!res.primary) { res.primary = h; } }
-      else if (h.sev === 'FLAG') { res.flag.push(h.id); if (!cats[h.cat]) { cats[h.cat] = 1; nCats++; } }
+      else if (h.sev === 'FLAG') {
+        res.flag.push(h.id);
+        if (profile !== 'strict' && (h.damp || h.noEsc)) { continue; }
+        if (!cats[h.cat]) { cats[h.cat] = 1; nCats++; }
+        if (INTENT[h.cat]) { intent = true; }
+      }
       else { res.log.push(h.id); }
     }
     if (res.primary) { res.verdict = 'block'; }
-    else if (minFlagCats > 0 && nCats >= minFlagCats) {
+    else if (minFlagCats > 0 && nCats >= minFlagCats && (profile === 'strict' || intent)) {
       res.verdict = 'block';
       res.primary = { id: 'SG-ESC-001', cat: 'escalation', sev: 'BLOCK' };
       res.block.push('SG-ESC-001');
@@ -267,6 +424,8 @@ var SG = (function () {
   return {
     normalize: normalize, fold: fold, loadLexicon: loadLexicon, scanRules: scanRules,
     scanLexicon: scanLexicon, scanPII: scanPII, scanStructural: scanStructural,
-    decide: decide, dedupe: dedupe, MESSAGES: MESSAGES, luhnOk: luhnOk, nricOk: nricOk
+    decide: decide, dedupe: dedupe, MESSAGES: MESSAGES, luhnOk: luhnOk, nricOk: nricOk,
+    twIdOk: twIdOk, hkidOk: hkidOk, TW_ID_RE: TW_ID_RE, HKID_RE: HKID_RE,
+    dampen: dampen, applyOverrides: applyOverrides, parseOverrides: parseOverrides
   };
 })();

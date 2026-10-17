@@ -62,6 +62,16 @@ function redactText(text, counts) {
     counts['SG-PII-004'] = (counts['SG-PII-004'] || 0) + 1;
     return '[REDACTED:SG-PII-004]';
   });
+  text = text.replace(new RegExp(SG.TW_ID_RE.source, 'g'), function (m, l, d) {
+    if (!SG.twIdOk(l, d)) { return m; }
+    counts['SG-PII-010'] = (counts['SG-PII-010'] || 0) + 1;
+    return '[REDACTED:SG-PII-010]';
+  });
+  text = text.replace(new RegExp(SG.HKID_RE.source, 'g'), function (m, p, d, c) {
+    if (!SG.hkidOk(p, d, c)) { return m; }
+    counts['SG-PII-011'] = (counts['SG-PII-011'] || 0) + 1;
+    return '[REDACTED:SG-PII-011]';
+  });
   return text;
 }
 
@@ -117,10 +127,14 @@ if (context.getVariable('sg.out_action') !== 'block') {
     var norm = SG.normalize(text).text;
     var folded = SG.fold(norm);
 
+    var profile = context.getVariable('sg.profile') || 'balanced';
+    var overrides = JSON.parse(context.getVariable('sg.overrides') || '{}');
+
     var hits = [];
-    hits = hits.concat(SG.scanRules({ raw: text, norm: norm }, 'out'));
-    hits = hits.concat(SG.scanLexicon(norm, folded, lex, 'out'));
+    hits = hits.concat(SG.scanRules({ raw: text, norm: norm }, 'out', null, profile));
+    hits = hits.concat(SG.scanLexicon(norm, folded, lex, 'out', profile));
     hits = hits.concat(SG.scanPII(text));
+    SG.applyOverrides(hits, overrides.out);
     hits = SG.dedupe(hits);
 
     var counts = JSON.parse(context.getVariable('sg.out_redact_counts') || '{}');
@@ -143,7 +157,7 @@ if (context.getVariable('sg.out_action') !== 'block') {
       if (leaked) { hits.unshift(leaked); }
     }
 
-    var d = SG.decide(hits, 0);
+    var d = SG.decide(hits, 0, profile);
     var ids = [], redactedIds = [], total = 0;
     for (var i = 0; i < hits.length; i++) { ids.push(hits[i].id); }
     for (var k in counts) {

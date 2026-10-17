@@ -75,6 +75,20 @@
         </Response>
     </PostClientFlow>
     <Flows/>
+    <!-- On any fault (Model Armor / NeMo / static block) the response PreFlow is skipped; add the
+         same verdict headers so clients and the demo UI still see what Static flagged. Headers only:
+         the fault status and body are unchanged. -->
+    <DefaultFaultRule name="default-fault">
+        <Step>
+            <Condition>sg.enabled = "true"</Condition>
+            <Name>AM-SG-Response-Flags</Name>
+        </Step>
+        <Step>
+            <Condition>nemo.enabled = "true"</Condition>
+            <Name>AM-NeMo-Response-Flags</Name>
+        </Step>
+        <AlwaysEnforce>true</AlwaysEnforce>
+    </DefaultFaultRule>
     <HTTPProxyConnection>
         <BasePath>/guardrail-proxy</BasePath>
     </HTTPProxyConnection>

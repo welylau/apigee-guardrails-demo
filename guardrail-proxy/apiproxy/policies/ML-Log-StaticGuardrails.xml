@@ -18,6 +18,8 @@
   "inCategory": "{sg.category}",
   "inRules": "{sg.rules}",
   "inFlags": "{sg.flags}",
+  "profile": "{sg.profile}",
+  "dampened": "{sg.dampened}",
   "parity": "{sg.parity}",
   "elapsedMs": "{sg.elapsed_ms}",
   "outVerdict": "{sg.out_verdict}",

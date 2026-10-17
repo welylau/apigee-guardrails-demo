@@ -13,7 +13,7 @@
         <!-- SG-SQL-004: Time-based / command-exec SQL injection -->
         <Pattern>\bxp_cmdshell\b|\bwaitfor\s+delay\b|\b(and|or|select)\s+sleep\s*\(\s*\d+\s*\)|\bbenchmark\s*\(\s*\d+</Pattern>
         <!-- SG-XSS-001: Cross-site scripting payload -->
-        <Pattern>&lt;\s*script\b|javascript:[^\s]|\bon(error|load|mouseover|focus|click)\s*=\s*['\"a-z]</Pattern>
+        <Pattern>&lt;\s*script\b[^&gt;]{0,200}(\bsrc\s*=|&gt;\s*(?!(tag|tags|element|elements)\b)[^\s&lt;])|javascript:[^\s]|\bon(error|load|mouseover|focus|click)\s*=\s*['\"a-z]</Pattern>
         <!-- SG-CMD-001: Shell command chaining / reverse shell -->
         <Pattern>(;|&amp;&amp;|\|\|?)\s*(rm\s+-rf\s+[/~*]|nc\s+-e\b|ncat\s|bash\s+-i\b|powershell(\.exe)?\s+-e(nc)?\b|mkfifo\s)</Pattern>
         <!-- SG-PATH-001: Path traversal -->
@@ -30,7 +30,7 @@
         <Pattern>\$\(\s*(curl|wget|nc|bash|sh|python3?|perl)\b|:\(\)\s*\{\s*:\s*\|\s*:\s*&amp;\s*\}\s*;\s*:|\bchmod\s+(-r\s+)?(\+s|0?777)\s+/|\bdd\s+if=/dev/(zero|random|urandom)\s+of=/dev/</Pattern>
         <!-- SG-CMD-004: Windows living-off-the-land download / execution (certutil, mshta, IEX) -->
         <Pattern>\bcertutil(\.exe)?\s+-urlcache\b|\bbitsadmin(\.exe)?\s+/transfer\b|\bmshta(\.exe)?\s+(https?|javascript|vbscript):|\biex\s*\(\s*\(?\s*new-object\b|\.downloadstring\s*\(</Pattern>
-        <!-- SG-SSRF-001: SSRF to cloud metadata endpoints (GCP / AWS / Azure / Alibaba) -->
+        <!-- SG-SSRF-001: SSRF to cloud metadata endpoints (GCP / AWS / Azure / Alibaba) - also a common dev question -->
         <Pattern>(https?://|curl\s+|wget\s+)[^\s]{0,20}(169\.254\.169\.254|metadata\.google\.internal|100\.100\.100\.200)|/computemetadata/v1\b|/latest/meta-data\b|/metadata/instance\?api-version</Pattern>
         <!-- SG-XXE-001: XML external entity (XXE) declaration -->
         <Pattern>&lt;!entity\s+(%\s+)?[a-z0-9_.-]{1,50}\s+(system|public)\s+['\"]|&lt;!doctype\s+[a-z0-9_.-]{1,50}\s*\[\s*&lt;!entity</Pattern>

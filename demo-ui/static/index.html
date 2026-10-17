@@ -174,8 +174,8 @@
                             <h3>Inspection Policies</h3>
                         </div>
                         <div class="pol-presets" id="policyPresets" role="group" aria-label="Global policy presets">
-                            <button type="button" class="pol-preset" data-preset="strict" title="Static In/Out: Enforce · Model Armor In/Out: On · NeMo: Enforce">Strict</button>
-                            <button type="button" class="pol-preset" data-preset="safeflow" title="Static In: Enforce, Out: Redact · Model Armor In/Out: On · NeMo: Enforce">Safe-flow</button>
+                            <button type="button" class="pol-preset" data-preset="strict" title="Static In/Out: Enforce, profile Strict · Model Armor In/Out: On · NeMo: Enforce">Strict</button>
+                            <button type="button" class="pol-preset" data-preset="safeflow" title="Static In: Enforce, Out: Redact, profile Balanced · Model Armor In/Out: On · NeMo: Enforce">Safe-flow</button>
                             <button type="button" class="pol-preset" data-preset="observe" title="Static In/Out: Monitor · Model Armor: Off (no monitor mode) · NeMo: Monitor">Observe</button>
                             <button type="button" class="pol-preset" data-preset="off" title="All layers Off">Off</button>
                         </div>
@@ -188,7 +188,7 @@
                             <span role="columnheader">Layer</span>
                             <span role="columnheader">In</span>
                             <span role="columnheader">Out</span>
-                            <span role="columnheader">Rail</span>
+                            <span role="columnheader" title="Static: balanced / strict profile · Model Armor: confidence levels in the template · NeMo: which rail runs">Profile</span>
                         </div>
 
                         <!-- Static Guardrails: Apigee StaticGuardrails SharedFlow (regex + JS, no model call) -->
@@ -212,7 +212,12 @@
                                     <option value="disable">Off</option>
                                 </select>
                             </span>
-                            <span role="cell" class="pol-na">—</span>
+                            <span role="cell">
+                                <select class="pol-select" id="staticProfile" data-value="balanced" aria-label="Static guardrails profile">
+                                    <option value="balanced">Balanced</option>
+                                    <option value="strict">Strict</option>
+                                </select>
+                            </span>
                         </div>
 
                         <!-- Model Armor: SanitizeUserPrompt / SanitizeModelResponse policies -->
@@ -231,7 +236,10 @@
                                     <span class="pol-switch-track" aria-hidden="true"><span class="pol-switch-thumb"></span></span>
                                 </button>
                             </span>
-                            <span role="cell" class="pol-na">—</span>
+                            <span role="cell">
+                                <a class="pol-template-link" id="maTemplateLink" href="https://docs.cloud.google.com/model-armor/manage-templates" target="_blank" rel="noopener noreferrer"
+                                   title="Model Armor has no profile switch here: the confidence level of each filter (responsible AI, prompt injection & jailbreak, sensitive data, malicious URLs) is set in its template. Opens the Model Armor docs.">Template ↗</a>
+                            </span>
                         </div>
 
                         <!-- NVIDIA NeMo Guardrails (Cloud Run) via Apigee ServiceCallout - inbound only -->
@@ -528,6 +536,27 @@
                 </div>
             </div>
 
+            <!-- Static flagged -> Model Armor / NeMo verdict (tunes the balanced profile) -->
+            <div class="chart-box sg-ma-card" id="sgMaCard">
+                <div class="chart-box-header">
+                    <div class="chart-title-wrap">
+                        <span class="chart-icon">⚖️</span>
+                        <h4>Static Flagged → Model Armor Verdict</h4>
+                    </div>
+                    <span class="chart-tag">Balanced profile tuning</span>
+                </div>
+                <div class="sg-ma-grid">
+                    <div class="sg-ma-stat"><strong id="sgMaFlagged">0</strong><span>Flagged by Static (not blocked)</span></div>
+                    <div class="sg-ma-stat"><strong id="sgMaConfirmed">0</strong><span>Then blocked by Model Armor / NeMo</span></div>
+                    <div class="sg-ma-stat"><strong id="sgMaAllowed">0</strong><span>Allowed by every layer</span></div>
+                </div>
+                <table>
+                    <thead><tr><th>Rule</th><th>Flagged</th><th>Confirmed</th><th>Allowed</th><th>Context downgrade</th><th>Suggestion</th></tr></thead>
+                    <tbody id="sgMaRules"><tr><td colspan="6">No flagged requests in this time range yet. Try the "Code Review (payload flagged, not blocked)" scenario.</td></tr></tbody>
+                </table>
+                <div class="sg-ma-hint" id="sgMaHint">Static blocks in this range: balanced 0 · strict 0. Rules usually confirmed by Model Armor are candidates for BLOCK (<code>sev.overrides=RULE:BLOCK</code>); rules always allowed are noise. Runs from this UI only.</div>
+            </div>
+
             <!-- Table Section: Item 3 (Detailed Log Table including payload) -->
             <div class="admin-table-box">
                 <div class="table-box-header">
@@ -663,6 +692,23 @@
                     </div>
                 </div>
                 <p class="nemo-lead">The cheapest, fastest layer: a reusable <strong>StaticGuardrails SharedFlow</strong> built only from native Apigee policies — JSON threat limits, <code>RegularExpressionProtection</code> signatures and JavaScript validators — plus a JavaScript scanner in the streaming <code>EventFlow</code>. Known-bad patterns are stopped at the gateway before any tokens are spent on Model Armor, NeMo or Gemini.</p>
+
+                <div class="nemo-section">
+                    <div class="modal-section-title">Profiles — Balanced (default) vs Strict</div>
+                    <p>Pick the profile in the <strong>Profile</strong> column (header <code>x-static-profile</code>, default from property <code>profile.default</code>). Balanced treats Static Guardrails as a high-precision <em>first line of defence</em>: anything ambiguous is <strong>flagged</strong> and passed on so Model Armor decides, never silently allowed.</p>
+                    <table class="compare-table">
+                        <thead><tr><th>Signal</th><th>Balanced</th><th>Strict</th></tr></thead>
+                        <tbody>
+                            <tr><td>Real payloads, secrets, TW / HK IDs, threats</td><td>Block</td><td>Block</td></tr>
+                            <tr><td>Attack quoted, discussed, or pasted in a code block for review</td><td>Flag → Model Armor</td><td>Block</td></tr>
+                            <tr><td>Chinese negation (不要忽略之前的規則)</td><td>Flag</td><td>Block</td></tr>
+                            <tr><td>Developer mode, "show the system prompt", cloud metadata URL</td><td>Flag</td><td>Block</td></tr>
+                            <tr><td>Casual profanity not aimed at anyone</td><td>Flag</td><td>Block</td></tr>
+                            <tr><td>Two weak signals (e.g. email + short URL)</td><td>Allow</td><td>Block (escalation)</td></tr>
+                        </tbody>
+                    </table>
+                    <p>Choose <strong>strict</strong> for agentic or tool-calling apps where a payload could actually execute. Individual rules can be raised or lowered without redeploying via <code>sev.overrides=RULE:BLOCK|FLAG|LOG|OFF</code>. On the benchmark of 249 normal prompts, balanced blocks 0 and strict blocks 21, while both block every clear-cut attack.</p>
+                </div>
 
                 <div class="nemo-section">
                     <div class="modal-section-title">Architecture — How Apigee Executes Static Guardrails</div>
@@ -849,6 +895,12 @@
             </div>
             <div class="modal-body nemo-modal-body">
                 <p class="nemo-lead">A Google Cloud service that enhances the security and safety of AI applications by <strong>proactively screening LLM prompts and responses</strong>. Whether AI runs on Google Cloud or another cloud, it helps prevent malicious input, verify content safety, protect sensitive data, maintain compliance, and enforce AI safety and security policies consistently.</p>
+
+                <div class="nemo-section">
+                    <div class="modal-section-title">Tuning Model Armor — the template is its "profile"</div>
+                    <p>Model Armor has no balanced / strict switch in this UI. Its sensitivity is set in the <strong>template</strong> used by each policy (<code>ma-ai-gw-inbound</code> for prompts, <code>ma-ai-gw-outbound</code> for responses): choose which filters run and the <strong>confidence level</strong> for each one (responsible AI categories, prompt injection &amp; jailbreak, sensitive data protection, malicious URLs). A lower confidence threshold catches more but may block more legitimate prompts.
+                    <a class="pol-template-link" href="https://docs.cloud.google.com/model-armor/manage-templates" target="_blank" rel="noopener noreferrer">Create and manage Model Armor templates ↗</a></p>
+                </div>
 
                 <div class="nemo-section">
                     <div class="modal-section-title">Architecture — How Apigee Integrates with Model Armor</div>

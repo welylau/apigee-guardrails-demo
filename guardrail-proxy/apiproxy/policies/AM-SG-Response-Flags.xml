@@ -9,6 +9,8 @@
             <Header name="x-sg-rules">{sg.rules}</Header>
             <Header name="x-sg-flags">{sg.flags}</Header>
             <Header name="x-sg-elapsed-ms">{sg.elapsed_ms}</Header>
+            <Header name="x-sg-profile">{sg.profile}</Header>
+            <Header name="x-sg-dampened">{sg.dampened}</Header>
         </Headers>
     </Set>
     <IgnoreUnresolvedVariables>true</IgnoreUnresolvedVariables>

@@ -33,6 +33,18 @@ var outMode = (hdrOut === 'enforce' || hdrOut === 'redact' || hdrOut === 'monito
   ? hdrOut : (prop('mode.outbound_default') || 'enforce');
 context.setVariable('sg.out_mode', outMode);
 
+// Profile: x-static-profile = balanced | strict   (default: property profile.default, else balanced)
+//   balanced - high-precision first line of defence: ambiguous signals are FLAGged for Model Armor
+//   strict   - original behaviour: every catalog BLOCK blocks (e.g. agentic / tool-calling apps)
+var hdrProfile = String(context.getVariable('request.header.x-static-profile') || '').toLowerCase();
+var profile = (hdrProfile === 'balanced' || hdrProfile === 'strict') ? hdrProfile : (prop('profile.default') || 'balanced');
+context.setVariable('sg.profile', profile === 'strict' ? 'strict' : 'balanced');
+// Per-rule severity overrides without redeploying the SharedFlow: "SG-PI-005:LOG,SG-SSRF-001:BLOCK"
+context.setVariable('sg.overrides', JSON.stringify({
+  'in': SG.parseOverrides(prop('sev.overrides')),
+  out: SG.parseOverrides(prop('sev.overrides_out'))
+}));
+
 var body = context.getVariable('request.content') || '';
 var texts = [], turns = 0, parseError = false;
 

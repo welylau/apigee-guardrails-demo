@@ -52,9 +52,10 @@ export const MISSIONS = [
           <ul>
             <li><b>In</b>: checks the prompt before Gemini sees it</li>
             <li><b>Out</b>: checks the streamed answer as it's generated</li>
-            <li><b>Rail</b>: picks which NeMo check runs</li>
+            <li><b>Profile</b>: Static <i>Balanced</i> / <i>Strict</i>, Model Armor's template, NeMo's rail</li>
           </ul>
-          Use the presets (<b>Strict</b>, <b>Safe-flow</b>, <b>Observe</b>, <b>Off</b>) to set every layer at once.
+          Use the presets (<b>Strict</b>, <b>Safe-flow</b>, <b>Observe</b>, <b>Off</b>) to set every layer at once;
+          <b>Strict</b> also switches Static Guardrails to the strict profile.
           Click <b>ⓘ</b> to learn more about a layer. In this tour, each scenario sets the layers for you.`,
         action: { label: 'Got it', run: (e) => e.completeStep() },
       },
@@ -100,16 +101,27 @@ export const MISSIONS = [
         A good guardrail must <b>not</b> block it. All layers are on.`,
       expect: '200 OK: the answer streams normally',
       done: { outcome: ['clean'] },
+    }, {
+      kind: 'scenario',
+      scenario: 'benign-code-review',
+      title: 'Flag it, don\'t block it',
+      target: '[data-scenario="benign-code-review"]',
+      body: `Now paste a <b>real</b> SQL injection payload, but inside a code block with a review question.
+        Static Guardrails run in the <b>balanced</b> profile: they are a first line of defence, so when the
+        context looks legitimate they <b>flag</b> the payload instead of blocking it and let Model Armor decide.
+        Look for <code>[STATIC] … verdict=flag</code> in the event log.`,
+      expect: '200 OK: Static flags SG-SQL-002, Model Armor and NeMo pass it',
+      done: { outcome: ['clean'] },
     }],
     explainer: {
       title: 'Talking about attacks is not an attack',
       flow: [
-        { text: 'Static Guardrails: no SQL payload pattern matched', state: 'ok' },
+        { text: 'Static Guardrails: no payload in the explainer; the code-review payload was flagged, not blocked', state: 'ok' },
         { text: 'Model Armor: no prompt injection or harmful content', state: 'ok' },
         { text: 'NeMo jailbreak check: passed', state: 'ok' },
         { text: 'Gemini streamed the answer; outbound checks found nothing', state: 'ok' },
       ],
-      note: 'The static rules match real payloads such as <code>\' OR \'1\'=\'1</code>, not the words "SQL injection".',
+      note: 'Static rules block real payloads such as <code>\' OR \'1\'=\'1</code>, not the words "SQL injection". In the balanced profile, a payload that is quoted, discussed or pasted for review is <b>flagged</b> and passed to Model Armor. Use the <b>strict</b> profile (header <code>x-static-profile</code>) for agentic apps where payloads can execute.',
     },
   },
 
@@ -127,17 +139,27 @@ export const MISSIONS = [
         so Apigee checks them first with <b>regex rules</b>. No AI model is called.`,
       expect: '400 from Static Guardrails in ~80 ms',
       done: { outcome: ['static-in'] },
+    }, {
+      kind: 'scenario',
+      scenario: 'static-zh-tw',
+      title: 'Same rules, Traditional Chinese',
+      target: '[data-scenario="static-zh-tw"]',
+      body: `This prompt hides a jailbreak in <b>Traditional Chinese</b> (繁體中文), as used in Taiwan and Hong Kong.
+        Apigee converts Traditional characters to Simplified before checking, so <b>one rule set</b>
+        covers TW, HK and mainland Chinese, with no duplicated rules.`,
+      expect: '400 from Static Guardrails (SG-PI-006)',
+      done: { outcome: ['static-in'] },
     }],
     explainer: {
       title: 'Cheapest layer first',
       flow: [
-        { text: 'StaticGuardrails SharedFlow matched an SG-SQL-* rule', state: 'fail' },
+        { text: 'StaticGuardrails SharedFlow matched a known pattern (SG-SQL-*, SG-PI-006)', state: 'fail' },
         { text: 'Apigee returned 400 straight away', state: 'fail' },
         { text: 'Model Armor: not called', state: 'skip' },
         { text: 'NeMo: not called', state: 'skip' },
         { text: 'Gemini: not called (no tokens used)', state: 'skip' },
       ],
-      note: 'Static rules are fast and predictable, but only catch patterns you list. The next layers handle the rest.',
+      note: 'Static rules (balanced profile) are fast and predictable, but only catch patterns you list, in any script you normalise. Rewording slips past them, so the next layers handle the rest.',
     },
   },
 
@@ -306,6 +328,51 @@ export const MISSIONS = [
         { text: 'The stream finished normally; nothing sensitive reached the client', state: 'ok' },
       ],
       note: 'A short hold-back buffer (~64 characters) lets values that are split across SSE events still be caught.',
+    },
+  },
+
+  // ---------------------------------------------------------------- bonus
+  {
+    id: 'profiles',
+    bonus: true,
+    title: 'Bonus: Balanced vs Strict',
+    badge: 'Profile',
+    steps: [{
+      kind: 'action',
+      title: 'Two Static Guardrails profiles',
+      target: '#staticProfile',
+      before: (e) => {
+        e.closeAdmin();
+        const sec = document.getElementById('policiesSection');
+        if (sec?.classList.contains('collapsed')) document.getElementById('policiesCollapseToggle')?.click();
+      },
+      body: `Static Guardrails have two <b>profiles</b>:
+        <ul>
+          <li><b>Balanced</b> (default): a first line of defence. Only near-certain signals block; anything
+            ambiguous is <b>flagged</b> and Model Armor decides.</li>
+          <li><b>Strict</b>: every known pattern blocks, whatever the context. Use it for agents with
+            SQL or shell tools, where a payload could actually run.</li>
+        </ul>
+        Model Armor is tuned differently: in its <b>template</b> (Template ↗ link in the same column).`,
+      action: { label: 'Next', run: (e) => e.completeStep() },
+    }, {
+      kind: 'scenario',
+      scenario: 'strict-code-review',
+      title: 'Same prompt, Strict profile',
+      target: '[data-scenario="strict-code-review"]',
+      body: `This is the same code-review prompt as in mission 2, which Balanced only <b>flagged</b>.
+        With the <b>Strict</b> profile, Static Guardrails block the payload at the gateway, whatever the context.`,
+      expect: '400 from Static Guardrails (SG-SQL-002) in ~80 ms',
+      done: { outcome: ['static-in'] },
+    }],
+    explainer: {
+      title: 'Same payload, two decisions',
+      flow: [
+        { text: 'Balanced: payload in a code block with a review question → flagged, Model Armor allowed it (200)', state: 'ok' },
+        { text: 'Strict: same payload → blocked by Static Guardrails (400), no Model Armor or Gemini cost', state: 'fail' },
+        { text: 'Admin Panel → "Static Flagged → Model Armor Verdict" shows which flagged rules Model Armor confirms', state: 'ok' },
+      ],
+      note: 'Balanced blocked 0 of 249 normal benchmark prompts; Strict blocked 21. Both block every clear-cut attack. Use <code>sev.overrides</code> to promote individual rules that Model Armor keeps confirming.',
     },
   },
 ];

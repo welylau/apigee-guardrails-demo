@@ -31,6 +31,7 @@ AUDIT_LOGS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "audi
 STREAMING_SSE_URL = os.environ.get("STREAMING_SSE_URL", "https://YOUR_APIGEE_HOST/guardrail-proxy")
 STATIC_MODES = ("enforce", "monitor", "disable")
 STATIC_OUT_MODES = ("enforce", "redact", "monitor", "disable")
+STATIC_PROFILES = ("balanced", "strict")
 NEMO_MODES = ("enforce", "monitor", "disable")
 NEMO_PROFILES = ("jailbreak_self_check", "content_safety", "topic_control")
 LEGACY_PROXY_ALIASES = {"SMR-streaming-sse": "guardrail-proxy"}
@@ -180,8 +181,13 @@ class AuditStore:
                 }
             })
 
-    def record(self, proxy, direction, prompt, status, blocked, payload, elapsed_ms, client_ip="127.0.0.1"):
-        """Records a new live audit log entry from incoming proxy traffic."""
+    def record(self, proxy, direction, prompt, status, blocked, payload, elapsed_ms, client_ip="127.0.0.1",
+               static=None, outcome=None):
+        """Records a new live audit log entry from incoming proxy traffic.
+
+        static  - {mode, profile, ma_in, verdict, flags, dampened} from the x-sg-* headers (rule IDs only)
+        outcome - clean | static-in | static-out | ma-in | ma-out | nemo | error
+        """
         now = time.time()
         iso_ts = datetime.datetime.fromtimestamp(now, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         
@@ -216,6 +222,10 @@ class AuditStore:
             "client_ip": client_ip,
             "payload": payload
         }
+        if static is not None:
+            entry["static"] = static
+        if outcome is not None:
+            entry["outcome"] = outcome
 
         with self.lock:
             self.logs.insert(0, entry)
@@ -385,8 +395,44 @@ class AuditStore:
             },
             "by_proxy": by_proxy,
             "violations": violations,
+            "static_vs_ma": self._static_vs_ma(filtered),
             "logs": filtered
         }
+
+    @staticmethod
+    def _static_vs_ma(entries):
+        """Static flagged (not blocked) -> what the later layers decided, per rule.
+
+        A rule that is flagged often but almost never confirmed by Model Armor / NeMo is
+        noise (safe to keep as FLAG or demote); one that is usually confirmed is a candidate
+        for BLOCK (sev.overrides) so it is stopped earlier and cheaper.
+        """
+        res = {"flagged": 0, "confirmed": 0, "allowed": 0, "unverified": 0,
+               "static_blocks": {"balanced": 0, "strict": 0}, "rules": {}}
+        for e in entries:
+            s = e.get("static") or {}
+            outcome = e.get("outcome", "")
+            if outcome == "static-in":
+                prof = s.get("profile", "balanced")
+                res["static_blocks"][prof] = res["static_blocks"].get(prof, 0) + 1
+            if s.get("verdict") != "flag":
+                continue
+            res["flagged"] += 1
+            if outcome in ("ma-in", "ma-out", "nemo"):
+                bucket = "confirmed"
+            elif outcome == "clean" and s.get("ma_in"):
+                bucket = "allowed"
+            else:
+                bucket = "unverified"   # Model Armor inbound was off, or the run errored
+            res[bucket] += 1
+            for rid in [r for r in (s.get("flags") or "").split(",") if r]:
+                r = res["rules"].setdefault(rid, {"flagged": 0, "confirmed": 0, "allowed": 0, "unverified": 0,
+                                                  "dampened": 0})
+                r["flagged"] += 1
+                r[bucket] += 1
+                if rid in (s.get("dampened") or ""):
+                    r["dampened"] += 1
+        return res
 
 
 audit_store = AuditStore(AUDIT_LOGS_FILE)
@@ -525,6 +571,9 @@ class DemoHandler(http.server.BaseHTTPRequestHandler):
             static_out_mode = str(data.get("static_out_mode", "enforce")).lower()
             if static_out_mode not in STATIC_OUT_MODES:
                 static_out_mode = "enforce"
+            static_profile = str(data.get("static_profile", "balanced")).lower()
+            if static_profile not in STATIC_PROFILES:
+                static_profile = "balanced"
             nemo_mode = str(data.get("nemo_mode", "disable")).lower()
             if nemo_mode not in NEMO_MODES:
                 nemo_mode = "disable"
@@ -558,7 +607,7 @@ class DemoHandler(http.server.BaseHTTPRequestHandler):
 
         if clean_path.endswith("/api/streaming-sse"):
             self._handle_streaming_sse(prompt, encoded_payload, enable_inbound, enable_outbound, static_mode, static_out_mode,
-                                       nemo_mode, nemo_profile)
+                                       nemo_mode, nemo_profile, static_profile)
         else:
             self.send_response(404)
             self._set_security_headers("application/json")
@@ -567,7 +616,7 @@ class DemoHandler(http.server.BaseHTTPRequestHandler):
 
     def _handle_streaming_sse(self, prompt, encoded_payload, enable_inbound=True, enable_outbound=True,
                               static_mode="enforce", static_out_mode="enforce",
-                              nemo_mode="disable", nemo_profile="jailbreak_self_check"):
+                              nemo_mode="disable", nemo_profile="jailbreak_self_check", static_profile="balanced"):
         start_time = time.time()
         headers = {
             "Content-Type": "application/json",
@@ -575,6 +624,7 @@ class DemoHandler(http.server.BaseHTTPRequestHandler):
             "x-outbound": "enable" if enable_outbound else "disable",
             "x-static-guardrails": static_mode,
             "x-static-outbound": static_out_mode,
+            "x-static-profile": static_profile,
             "x-nemo-guardrails": nemo_mode,
             "x-nemo-profile": nemo_profile,
             "x-apikey": APIGEE_API_KEY,
@@ -586,6 +636,9 @@ class DemoHandler(http.server.BaseHTTPRequestHandler):
         )
 
         client_ip = self.client_address[0] if self.client_address else "127.0.0.1"
+        # Static verdict for the Admin Panel "Static flagged -> Model Armor verdict" card (rule IDs only).
+        static_info = {"mode": static_mode, "profile": static_profile, "ma_in": enable_inbound,
+                       "verdict": "", "flags": "", "dampened": ""}
 
         try:
             self.send_response(200)
@@ -607,7 +660,10 @@ class DemoHandler(http.server.BaseHTTPRequestHandler):
                     "sg_rules": resp.headers.get("x-sg-rules", ""),
                     "sg_flags": resp.headers.get("x-sg-flags", ""),
                     "sg_elapsed_ms": resp.headers.get("x-sg-elapsed-ms", ""),
+                    "sg_profile": resp.headers.get("x-sg-profile", ""),
+                    "sg_dampened": resp.headers.get("x-sg-dampened", ""),
                 }
+                static_info.update(verdict=sg_info["sg_verdict"], flags=sg_info["sg_flags"], dampened=sg_info["sg_dampened"])
                 self.wfile.write(f"event: static\ndata: {json.dumps(sg_info)}\n\n".encode("utf-8"))
                 nemo_info = {
                     "nemo_mode": nemo_mode,
@@ -644,6 +700,8 @@ class DemoHandler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(end_event)
             self.wfile.flush()
 
+            joined = "".join(stream_text)
+            outcome = ("static-out" if "RF-SG-Outbound-Blocked" in joined else "ma-out") if is_blocked else "clean"
             # Record in audit store
             audit_store.record(
                 proxy="guardrail-proxy",
@@ -653,11 +711,13 @@ class DemoHandler(http.server.BaseHTTPRequestHandler):
                 blocked=is_blocked,
                 payload={
                     "request": json.loads(encoded_payload.decode('utf-8')),
-                    "stream_events": "".join(stream_text)[:1000],
+                    "stream_events": joined[:1000],
                     "logName": f"projects/{GCP_PROJECT_ID}/logs/apigee-ai-sanitized-prompts" if is_blocked else None
                 },
                 elapsed_ms=total_ms,
-                client_ip=client_ip
+                client_ip=client_ip,
+                static=static_info,
+                outcome=outcome
             )
 
         except urllib.error.HTTPError as e:
@@ -671,6 +731,9 @@ class DemoHandler(http.server.BaseHTTPRequestHandler):
             is_nemo = "nemo-guardrails" in err_body
             is_blocked = (e.code == 400 and ("FilterMatched" in err_body or is_static or is_nemo))
             direction = "inbound" if (is_static or is_nemo or "user.prompt" in err_body) else "outbound"
+            static_info.update(verdict=(e.headers.get("x-sg-verdict", "") or ("block" if is_static else "")),
+                               flags=e.headers.get("x-sg-flags", ""), dampened=e.headers.get("x-sg-dampened", ""))
+            outcome = ("static-in" if is_static else "nemo" if is_nemo else "ma-in") if is_blocked else "error"
             audit_store.record(
                 proxy="guardrail-proxy",
                 direction=direction,
@@ -683,7 +746,9 @@ class DemoHandler(http.server.BaseHTTPRequestHandler):
                     "logName": f"projects/{GCP_PROJECT_ID}/logs/apigee-ai-sanitized-prompts" if is_blocked else None
                 },
                 elapsed_ms=elapsed_ms,
-                client_ip=client_ip
+                client_ip=client_ip,
+                static=static_info,
+                outcome=outcome
             )
 
         except Exception as e:
