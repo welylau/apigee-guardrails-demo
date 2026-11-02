@@ -11,7 +11,10 @@
  */
 import { MISSIONS, OUTCOME_LABEL, archOpen } from './tour-missions.js';
 
-const STORE_KEY = 'guardrailTour.v1';
+// v2: tour shortened to 7 + 2 missions; progress saved under v1 (mission positions) no longer applies.
+// A third bonus mission (Model Armor presets) was appended at the end, so v2 positions stay valid.
+const STORE_KEY = 'guardrailTour.v2';
+try { localStorage.removeItem('guardrailTour.v1'); } catch (ignore) { /* storage unavailable */ }
 const HIDE_WELCOME_KEY = 'guardrailTour.hideWelcome';
 const SEEN_KEY = 'guardrailTour.seenThisSession';
 
@@ -70,11 +73,11 @@ export class GuidedTour {
               <span class="tour-choice-badge">Recommended</span>
               <span class="tour-choice-icon">🗺️</span>
               <span class="tour-choice-title">Guided Tour</span>
-              <span class="tour-choice-meta">${main} short missions + bonus · about 8 min</span>
+              <span class="tour-choice-meta">${main} short missions + bonus · about 7 min</span>
               <ul class="tour-choice-list">
                 <li>Fast regex guardrails in Apigee</li>
                 <li>Model Armor on prompts and mid-stream</li>
-                <li>NeMo topic and jailbreak rails</li>
+                <li>NeMo topic rails and business personas</li>
                 <li>Defense in depth and audit logs</li>
               </ul>
             </button>
@@ -416,9 +419,9 @@ export class GuidedTour {
     const handoff = ho ? `
       <div class="tour-handoff">
         <div class="tour-handoff-row">
-          <span class="tour-handoff-layer missed"><span class="tour-handoff-x">✕</span>${esc(ho.missed)}<small>missed it</small></span>
+          <span class="tour-handoff-layer missed"><span class="tour-handoff-x">${esc(ho.missedIcon || '✕')}</span>${esc(ho.missed)}<small>${esc(ho.missedLabel || 'missed it')}</small></span>
           <span class="tour-handoff-arrow" aria-hidden="true">→</span>
-          <span class="tour-handoff-layer caught"><span class="tour-handoff-x">🛡</span>${esc(ho.caught)}<small>blocked it</small></span>
+          <span class="tour-handoff-layer caught"><span class="tour-handoff-x">🛡</span>${esc(ho.caught)}<small>${esc(ho.caughtLabel || 'blocked it')}</small></span>
         </div>
         <p class="tour-handoff-text">${esc(ho.text)}</p>
       </div>` : '';

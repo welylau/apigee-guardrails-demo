@@ -1,4 +1,9 @@
 nemoguardrails[server,jailbreak,sdd]==0.24.1
 spacy>=3.7.0,<3.8.0
+# spaCy 3.7 needs these older builds: newer preshed / cymem / murmurhash releases crash its tokenizer
+# ("OverflowError: Python int too large to convert to C ssize_t" in Tokenizer._reset_cache).
+preshed>=3.0.2,<3.0.10
+cymem>=2.0.2,<2.0.11
+murmurhash>=0.28.0,<1.0.11
 google-auth>=2.29.0
 requests>=2.32.0

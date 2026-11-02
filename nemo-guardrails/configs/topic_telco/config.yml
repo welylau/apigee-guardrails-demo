@@ -1,0 +1,19 @@
+models:
+  - type: main
+    engine: openai
+    model: gemini-2.5-flash-lite
+    parameters:
+      base_url: "http://127.0.0.1:8081/v1"
+      api_key: "vertex-adc"
+
+  - type: topic_control
+    engine: openai
+    model: gemini-2.5-flash-lite
+    parameters:
+      base_url: "http://127.0.0.1:8081/v1"
+      api_key: "vertex-adc"
+
+rails:
+  input:
+    flows:
+      - topic safety check input $model=topic_control

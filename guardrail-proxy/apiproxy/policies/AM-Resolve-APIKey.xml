@@ -10,9 +10,7 @@
         <Name>client_apikey</Name>
         <Ref>request.header.apikey</Ref>
     </AssignVariable>
-    <AssignVariable>
-        <Name>client_apikey</Name>
-        <Ref>request.queryparam.apikey</Ref>
-    </AssignVariable>
+    <!-- No query-parameter fallback: keys in URLs end up in access logs and browser history
+         (OWASP API2). Requests with ?apikey= / ?key= are rejected by RF-APIKey-In-URL. -->
     <IgnoreUnresolvedVariables>true</IgnoreUnresolvedVariables>
 </AssignMessage>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- P3: per-app quota from the API product's quota settings (limit / interval / time unit);
+     5000 per hour if the product sets none. -->
+<Quota continueOnError="false" enabled="true" name="Q-Per-App" type="calendar">
+    <DisplayName>Quota (per app)</DisplayName>
+    <Identifier ref="verifyapikey.VAK-Verify-API-Key.client_id"/>
+    <Allow count="5000" countRef="verifyapikey.VAK-Verify-API-Key.apiproduct.developer.quota.limit"/>
+    <Interval ref="verifyapikey.VAK-Verify-API-Key.apiproduct.developer.quota.interval">1</Interval>
+    <TimeUnit ref="verifyapikey.VAK-Verify-API-Key.apiproduct.developer.quota.timeunit">hour</TimeUnit>
+    <StartTime>2026-01-01 00:00:00</StartTime>
+    <Distributed>true</Distributed>
+    <Synchronous>true</Synchronous>
+</Quota>

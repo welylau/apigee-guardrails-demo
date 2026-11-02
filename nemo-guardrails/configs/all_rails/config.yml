@@ -1,0 +1,26 @@
+models:
+  - type: main
+    engine: openai
+    model: gemini-2.5-flash-lite
+    parameters:
+      base_url: "http://127.0.0.1:8081/v1"
+      api_key: "vertex-adc"
+
+  - type: content_safety
+    engine: openai
+    model: gemini-2.5-flash-lite
+    parameters:
+      base_url: "http://127.0.0.1:8081/v1"
+      api_key: "vertex-adc"
+
+# "All rails" profile (P5): jailbreak self-check + content safety in one call, run in parallel so the
+# added latency is roughly one judge call, not two. Used by the gateway's all-layers-on setting.
+rails:
+  input:
+    parallel: true
+    flows:
+      - self check input
+      - content safety check input $model=content_safety
+  output:
+    flows:
+      - self check output

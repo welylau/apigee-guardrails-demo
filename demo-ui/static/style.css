@@ -540,11 +540,20 @@ html, body {
   color: var(--text-muted);
 }
 
-/* Execution Buttons */
+/* Execution Buttons: sticky so Run stays reachable while the Prompt card is on screen.
+   Negative margins let the bar's background cover the card's side/bottom padding. */
 .execution-actions {
   display: flex;
   flex-direction: column;
   gap: 7px;
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  margin: 0 -14px -14px;
+  padding: 10px 14px 14px;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border-subtle);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
 }
 
 .btn-primary-run {
@@ -1341,6 +1350,31 @@ html, body {
   flex-direction: column;
   gap: 20px;
 }
+
+/* Admin Panel: Test Lab summary card (links to testlab.html) */
+.testlab-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--google-blue);
+  border-left-width: 4px;
+  border-radius: var(--radius-sm);
+  background: var(--google-blue-subtle);
+  color: var(--text-main);
+  text-decoration: none;
+  cursor: pointer;
+}
+.testlab-summary[hidden] { display: none; }
+.testlab-summary:hover { box-shadow: 0 2px 10px rgba(26, 115, 232, 0.18); }
+.testlab-summary-icon { font-size: 22px; }
+.testlab-summary-body { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.testlab-summary-title { font-size: 14px; font-weight: 700; }
+.testlab-summary-run { font-weight: 500; font-size: 12px; color: var(--text-muted); }
+.testlab-summary-stats { font-size: 12.5px; color: var(--text-secondary); }
+.testlab-summary-cta { font-size: 12.5px; font-weight: 700; color: var(--google-blue); white-space: nowrap; }
+[data-theme="dark"] .testlab-summary { background: rgba(26, 115, 232, 0.12); }
 
 /* Toolbar */
 .admin-toolbar {
@@ -2305,6 +2339,10 @@ html, body {
 .nemo-rail-used { align-self: flex-start; margin-top: 2px; font-size: 9.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; color: var(--gr-accent); }
 
 .nemo-demo-box { padding: 10px 12px; border-radius: var(--radius-sm); border: 1px dashed var(--gr-accent-border); background: var(--gr-accent-bg); }
+/* "How NeMo complements Static + Model Armor" callouts */
+.nemo-gap-lead { margin: 0; font-size: 13px; line-height: 1.55; color: var(--text-main); }
+.nemo-gap-example { margin: 2px 0 0; font-size: 12px; line-height: 1.5; color: var(--text-secondary); }
+.nemo-gap-example em { color: var(--text-main); }
 .nemo-links { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; font-weight: 600; }
 .nemo-links a { color: var(--google-blue); text-decoration: none; }
 .nemo-links a:hover { text-decoration: underline; }
@@ -2736,7 +2774,7 @@ html, body {
 }
 
 .compare-modal-card {
-  max-width: 1080px;
+  max-width: 1296px; /* +20% (was 1080px) */
   width: 95vw;
 }
 
@@ -3093,6 +3131,38 @@ html, body {
   border: 1px dashed rgba(37, 99, 235, 0.35);
   border-radius: var(--radius-sm);
 }
+
+/* Comparison window: larger, easier-to-read type (scoped so other modals are unchanged) */
+.compare-modal-card .modal-section-title { font-size: 14px; }
+.compare-modal-card .nemo-lead,
+.compare-modal-card .nemo-gap-lead { font-size: 14.5px; }
+.compare-modal-card .nemo-list { font-size: 13.5px; }
+/* Decision cards */
+.compare-modal-card .choice-badge { font-size: 10px; }
+.compare-modal-card .choice-card-header h4 { font-size: 14px; }
+.compare-modal-card .choice-when { font-size: 12.5px; }
+.compare-modal-card .choice-card-body li { font-size: 13px; line-height: 1.5; }
+.compare-modal-card .choice-card-body code { font-size: 11.5px; }
+/* Tables */
+.compare-modal-card .compare-table,
+.compare-modal-card .compare-table th { font-size: 13px; }
+.compare-modal-card .compare-table .dim-name strong { font-size: 13.5px; }
+.compare-modal-card .compare-table .dim-name small { font-size: 11.5px; }
+.compare-modal-card .compare-table td p,
+.compare-modal-card .compare-table td ul { font-size: 12.5px; line-height: 1.5; }
+.compare-modal-card .compare-table td code { font-size: 11.5px; }
+.compare-modal-card .table-chip,
+.compare-modal-card .table-tag { font-size: 10.5px; }
+.compare-modal-card .cs-table td,
+.compare-modal-card .cs-table .dim-name strong { font-size: 13.5px; }
+/* Simple view picks + tip */
+.compare-modal-card .cs-pick h4 { font-size: 14.5px; }
+.compare-modal-card .cs-pick p { font-size: 13px; }
+.compare-modal-card .cs-tip { font-size: 13.5px; }
+/* Recommendation box */
+.compare-modal-card .bp-content h5 { font-size: 14px; }
+.compare-modal-card .bp-content p,
+.compare-modal-card .bp-content ol { font-size: 13px; line-height: 1.55; }
 .cs-chain {
   display: inline-block;
   padding: 1px 8px;
@@ -3334,10 +3404,25 @@ html, body {
 }
 
 .pol-summary {
+  display: block;
+  width: 100%;
+  text-align: left;
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-muted);
   line-height: 1.5;
+  padding: 7px 10px;
+  background: var(--bg-tertiary);
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+.pol-summary:hover,
+.pol-summary:focus-visible {
+  color: var(--text-main);
+  border-color: var(--google-blue);
+  outline: none;
 }
 
 .pol-grid {
@@ -3469,6 +3554,96 @@ html, body {
   cursor: pointer;
 }
 .pol-link:hover { color: var(--google-blue); }
+
+/* "When to choose what": prominent call-to-action (opens the comparison modal) */
+.pol-compare-cta {
+  flex: 1 1 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 8px 12px;
+  font: inherit;
+  text-align: left;
+  color: var(--google-blue);
+  background: var(--google-blue-subtle);
+  border: 1.5px solid var(--google-blue);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+.pol-compare-cta:hover {
+  box-shadow: 0 4px 12px rgba(26, 115, 232, 0.25);
+  transform: translateY(-1px);
+}
+.pol-compare-cta:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+}
+.pol-compare-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  font-size: 16px;
+  color: #ffffff;
+  background: var(--google-blue);
+  border-radius: 50%;
+}
+.pol-compare-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.pol-compare-text strong { font-size: 12.5px; font-weight: 700; }
+.pol-compare-text small { font-size: 11px; font-weight: 500; color: var(--text-secondary); }
+.pol-compare-arrow { margin-left: auto; font-size: 16px; font-weight: 700; transition: transform 0.2s; }
+.pol-compare-cta:hover .pol-compare-arrow { transform: translateX(3px); }
+
+/* Top-of-panel placement: slimmer, single line (title · subtitle) so it doesn't push scenarios down */
+.pol-compare-top {
+  flex: 0 0 auto;
+  width: 100%;
+  padding: 6px 12px;
+  gap: 8px;
+}
+.pol-compare-top .pol-compare-icon { width: 22px; height: 22px; font-size: 13px; }
+.pol-compare-top .pol-compare-text { flex-direction: row; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.pol-compare-top .pol-compare-text small::before { content: '·'; margin-right: 6px; color: var(--text-muted); }
+
+/* Policies footer now only holds the Expand/Collapse link */
+.pol-footer { justify-content: flex-end; }
+
+/* NeMo business persona: picker + the rules the topic rail enforces */
+.pol-persona {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(118, 185, 0, 0.45);
+  border-left: 4px solid #76b900;
+  background: rgba(118, 185, 0, 0.08);
+}
+.pol-persona[hidden],
+.pol-card.collapsed .pol-persona { display: none !important; }
+.pol-persona-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pol-persona-label { font-size: 12px; font-weight: 700; color: var(--text-main); }
+.pol-persona-select { min-width: 150px; }
+.pol-persona-hint { font-size: 11px; color: var(--text-muted); }
+.pol-persona-rules { display: flex; flex-direction: column; gap: 6px; }
+.pol-persona-row { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
+.pol-persona-row-title { min-width: 74px; font-size: 11px; font-weight: 700; }
+.pol-persona-ok .pol-persona-row-title { color: #16a34a; }
+.pol-persona-no .pol-persona-row-title { color: #dc2626; }
+.pol-persona-chip {
+  padding: 2px 8px;
+  font-size: 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+}
+.pol-persona-ok .pol-persona-chip { border-color: rgba(22, 163, 74, 0.35); }
+.pol-persona-no .pol-persona-chip { border-color: rgba(220, 38, 38, 0.35); }
 
 /* Narrow panel: let presets wrap under the title */
 .pol-card > .section-header { flex-wrap: wrap; }

@@ -59,6 +59,15 @@ ZH_PERSONA = r"(dan|stan|dude|aim)(?![a-z0-9])"
 ZH_LEAK_OBJ = r"(系统提示词?|系统指令|隐藏(的)?(指令|提示词?)|初始(指令|设定|提示词?))"
 ZH_LEAK_VERB = r"(显示|告诉|输出|泄露|透露|打印|列出|重复|复述|给我|贴出|复制|吐出|印出|打出)"
 
+# Suspicious links (SG-URL-004 / 005). TLDs with very high phishing / malware abuse rates
+# (Spamhaus / Interisle reports); legitimate sites rarely use them for bank or login pages.
+RISKY_TLD = r"(top|xyz|zip|mov|click|country|gq|tk|ml|cf|ga|work|rest|cam|icu|buzz|cfd|sbs|lol|quest|support)"
+SUSPICIOUS_LINK = (r"https?://(([a-z0-9-]{1,63}\.){1,6}" + RISKY_TLD + r"(:\d{1,5})?(/|\b)"
+                   r"|(\d{1,3}\.){3}\d{1,3}|[^\s/@]{1,64}@[a-z0-9-]|([a-z0-9-]{1,63}\.){0,5}xn--)")
+PHISH_LURE = (r"\b(verify|confirm|validate|reactivate|unlock|restore)\s+(your|their|the)\s+"
+              r"(account|identity|login|credentials|payment\s+details|card|wallet)\b"
+              r"|\b(account|card|wallet)\s+(has\s+been|will\s+be|is)\s+(suspended|locked|disabled|closed|restricted|on\s+hold)\b")
+
 RULES = [
     # --- Prompt injection / jailbreak -------------------------------------
     dict(id="SG-PI-001", cat="prompt_injection", src="norm", sev_in="BLOCK", sev_out=None,
@@ -233,7 +242,7 @@ RULES = [
          re=r"\bAIza[0-9A-Za-z_\-]{35}"),
     dict(id="SG-SEC-004", cat="secret_leak", src="raw", sev_in="BLOCK", sev_out="BLOCK",
          desc="GitHub / Slack token",
-         re=r"\bgh[pousr]_[A-Za-z0-9]{36}\b|\bxox[baprs]-[A-Za-z0-9-]{10,}"),
+         re=r"\bgh[pousr]_[A-Za-z0-9]{36,251}\b|\bxox[baprs]-[A-Za-z0-9-]{10,}"),
     dict(id="SG-SEC-005", cat="secret_leak", src="raw", sev_in="FLAG", sev_out="FLAG",
          desc="JSON Web Token",
          re=r"\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"),
@@ -304,6 +313,12 @@ RULES = [
     dict(id="SG-URL-003", cat="malicious_url", src="norm", sev_in="FLAG", sev_out="BLOCK",
          desc="Out-of-band exfiltration / callback endpoint (OAST, request bins)",
          re=r"\b(webhook\.site|requestbin\.(net|com)|pipedream\.net|interact\.sh|burpcollaborator\.net|oast\.(pro|live|fun|site|online|me)|canarytokens\.com)\b"),
+    dict(id="SG-URL-004", cat="malicious_url", src="norm", sev_in="FLAG", sev_out="FLAG",
+         desc="Link to a high-abuse TLD, or a URL hiding the real host behind user@ (phishing / malware hosting)",
+         re=r"\bhttps?://([a-z0-9-]{1,63}\.){1,6}" + RISKY_TLD + r"(:\d{1,5})?(/|\b)|\bhttps?://[^\s/@]{1,64}@[a-z0-9-]"),
+    dict(id="SG-URL-005", cat="malicious_url", src="norm", sev_in="FLAG", strict_in="BLOCK", sev_out="BLOCK",
+         desc="Phishing lure ('verify your account', 'account suspended') next to a suspicious link (OWASP LLM05)",
+         re=r"(" + PHISH_LURE + r").{0,200}" + SUSPICIOUS_LINK + r"|" + SUSPICIOUS_LINK + r".{0,200}(" + PHISH_LURE + r")"),
 
     # --- Harsh language T1 (threats / death wishes / incitement) ------------
     dict(id="SG-LEX-T1-RE", cat="harsh_language", src="norm", sev_in="BLOCK", sev_out="BLOCK",

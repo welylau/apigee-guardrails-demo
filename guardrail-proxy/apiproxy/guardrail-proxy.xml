@@ -6,20 +6,29 @@
     <BasePaths>/guardrail-proxy</BasePaths>
     <Policies>
         <Policy>AM-Prepare-Gemini-Request</Policy>
+        <Policy>AM-MA-Response-Flags</Policy>
+        <Policy>AM-Rate-Limited</Policy>
         <Policy>AM-Resolve-APIKey</Policy>
         <Policy>AM-NeMo-Response-Flags</Policy>
         <Policy>AM-Set-Guardrail-Flags</Policy>
         <Policy>AM-SG-Response-Flags</Policy>
         <Policy>FC-StaticGuardrails</Policy>
         <Policy>JS-combine-resp</Policy>
+        <Policy>JS-MA-Resolve-Profile</Policy>
         <Policy>JS-NeMo-Build-Request</Policy>
         <Policy>JS-NeMo-Evaluate</Policy>
+        <Policy>JS-Request-Validate</Policy>
         <Policy>JS-SG-Outbound-Scan</Policy>
         <Policy>ML-Log-ModelArmor-Inbound</Policy>
         <Policy>ML-Log-ModelArmor-Outbound</Policy>
         <Policy>ML-Log-NeMo</Policy>
         <Policy>ML-Log-StaticGuardrails</Policy>
+        <Policy>RF-APIKey-In-URL</Policy>
+        <Policy>Q-Per-App</Policy>
         <Policy>RF-NeMo-Blocked</Policy>
+        <Policy>RF-Request-Rejected</Policy>
+        <Policy>RF-Request-Too-Large</Policy>
+        <Policy>SA-Per-App</Policy>
         <Policy>RF-SG-Outbound-Blocked</Policy>
         <Policy>SC-NeMo-Input</Policy>
         <Policy>SMR-modelresponse</Policy>
@@ -27,8 +36,10 @@
         <Policy>VAK-Verify-API-Key</Policy>
     </Policies>
     <Resources>
+        <Resource>jsc://ma-resolve-profile.js</Resource>
         <Resource>jsc://nemo-evaluate.js</Resource>
         <Resource>jsc://nemo-input.js</Resource>
+        <Resource>jsc://request-validate.js</Resource>
         <Resource>jsc://sg-common.js</Resource>
         <Resource>jsc://sg-outbound.js</Resource>
         <Resource>jsc://sg-rules.js</Resource>

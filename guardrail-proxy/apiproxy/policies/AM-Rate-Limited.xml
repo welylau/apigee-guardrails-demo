@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- P3: friendly 429 body for SpikeArrest / Quota violations (used by the RateLimited fault rule). -->
+<AssignMessage continueOnError="false" enabled="true" name="AM-Rate-Limited">
+    <DisplayName>Rate Limited Response</DisplayName>
+    <Set>
+        <Headers>
+            <Header name="x-guardrail-engine">apigee-rate-limit</Header>
+            <Header name="Retry-After">10</Header>
+        </Headers>
+        <Payload contentType="application/json" variablePrefix="@" variableSuffix="#">{"error":{"engine":"apigee-rate-limit","code":429,"limit":"@fault.name#","message":"Too many requests for this app. Slow down and retry shortly."}}</Payload>
+        <StatusCode>429</StatusCode>
+        <ReasonPhrase>Too Many Requests</ReasonPhrase>
+    </Set>
+    <IgnoreUnresolvedVariables>true</IgnoreUnresolvedVariables>
+    <AssignTo createNew="false" transport="http" type="response"/>
+</AssignMessage>

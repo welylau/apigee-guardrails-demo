@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<RaiseFault async="false" continueOnError="false" enabled="true" name="RF-Request-Too-Large">
+    <DisplayName>Request Validation - Too Large</DisplayName>
+    <FaultResponse>
+        <Set>
+            <Headers>
+                <Header name="x-guardrail-engine">apigee-request-validation</Header>
+            </Headers>
+            <Payload contentType="application/json" variablePrefix="@" variableSuffix="#">{"error":{"engine":"apigee-request-validation","code":413,"direction":"inbound","message":"@reqval.message#","fields":"body"}}</Payload>
+            <StatusCode>413</StatusCode>
+            <ReasonPhrase>Payload Too Large</ReasonPhrase>
+        </Set>
+    </FaultResponse>
+    <IgnoreUnresolvedVariables>true</IgnoreUnresolvedVariables>
+</RaiseFault>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- P3: per-app burst limit. The rate comes from the app's API product attribute "spike_rate"
+     (e.g. 600pm for the demo product, 6pm for the rate-limit test product); 600pm if unset.
+     Runs right after the API key check, so floods never reach the guardrails or Gemini. -->
+<SpikeArrest continueOnError="false" enabled="true" name="SA-Per-App">
+    <DisplayName>Spike Arrest (per app)</DisplayName>
+    <Identifier ref="verifyapikey.VAK-Verify-API-Key.client_id"/>
+    <Rate ref="verifyapikey.VAK-Verify-API-Key.apiproduct.spike_rate">600pm</Rate>
+    <UseEffectiveCount>true</UseEffectiveCount>
+</SpikeArrest>

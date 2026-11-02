@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" class="tl-page">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guardrail Test Lab · Apigee and Guardrails Solutions</title>
+    <link rel="icon" href="https://www.gstatic.com/bricks/image/b45728f17bf88494b25d78a9fb27ae538e6eb4a06a972f6502b7410ff714532d.svg" type="image/svg+xml">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="testlab/testlab.css">
+</head>
+<body>
+    <div class="app-container">
+        <div class="tl-top">
+            <header class="app-header">
+                <div class="brand-section">
+                    <div class="cloud-logos-wrapper">
+                        <div class="logo-item" title="Google Cloud Platform">
+                            <img src="assets/google-cloud.png" alt="Google Cloud" class="gcp-logo-img">
+                            <span class="gcp-name">Google Cloud</span>
+                        </div>
+                        <div class="brand-divider"></div>
+                        <div class="logo-item apigee-brand" title="Apigee API Management Platform">
+                            <img src="assets/apigee-logo.svg" alt="" width="24" height="24">
+                            <span class="apigee-name">Apigee <strong class="x-accent">X</strong></span>
+                        </div>
+                    </div>
+                    <div class="brand-divider"></div>
+                    <div class="brand-title-area">
+                        <div class="brand-title"><span>Guardrail Test Lab</span></div>
+                        <span class="brand-subtitle">OWASP LLM Top 10 (2025) · OWASP API Security Top 10 (2023)</span>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <a class="admin-nav-btn" href="index.html" id="btnBackToDemo" title="Back to the playground">
+                        <span class="nav-btn-icon">←</span><span>Back to demo</span>
+                    </a>
+                    <button type="button" class="theme-toggle-btn" id="themeToggleBtn" title="Toggle Light / Dark mode">◐</button>
+                </div>
+            </header>
+        </div>
+
+        <div class="tl-shell" id="tlShell">
+            <!-- Test runs: every run of every test set; picking one sets the context for all tabs -->
+            <aside class="tl-side" id="tlSide" aria-label="Test runs">
+                <div class="tl-side-head">
+                    <h2 class="tl-side-title">Test runs</h2>
+                    <button type="button" class="tl-side-toggle" id="tlSideToggle" aria-controls="tlSide" aria-expanded="true" title="Collapse the run list ( [ )">«</button>
+                </div>
+                <div class="tl-side-body">
+                    <input type="search" class="tl-side-filter" id="tlSideFilter" placeholder="Filter runs…" aria-label="Filter runs">
+                    <div class="tl-runs-tree" id="tlSuites" role="radiogroup" aria-label="Test runs"></div>
+                    <div class="tl-side-foot" id="tlSideFoot" hidden></div>
+                </div>
+            </aside>
+            <div class="tl-splitter" id="tlSplitter" role="separator" aria-orientation="vertical" aria-controls="tlSide" aria-label="Resize the run list"
+                 aria-valuemin="200" aria-valuemax="480" aria-valuenow="272" tabindex="0" title="Drag to resize · double-click to reset"></div>
+
+        <main class="tl-main">
+            <div class="tl-runhead" id="tlRunHead">
+                <h1 class="tl-runhead-title" id="tlScopeName">…</h1>
+                <span class="tl-runhead-kpis" id="tlRunKpis"></span>
+            </div>
+            <nav class="tl-pagetabs tl-viewbar" role="tablist" aria-label="Views of the selected test suite">
+                <button type="button" class="tl-pagetab active" data-tab="overview" role="tab" aria-selected="true">📊 Overview</button>
+                <button type="button" class="tl-pagetab" data-tab="results" role="tab" aria-selected="false">🧾 Results <span class="tl-tabcount" id="tlResultsCount"></span></button>
+                <button type="button" class="tl-pagetab" data-tab="catalogue" role="tab" aria-selected="false">📚 Test catalogue</button>
+                <button type="button" class="tl-pagetab" data-tab="coverage" role="tab" aria-selected="false">🗺️ Coverage map</button>
+                <span class="tl-pagetabs-meta" id="tlMeta">Loading results…</span>
+            </nav>
+            <div class="tl-context" id="tlContext" aria-label="Configuration tested"></div>
+
+            <!-- ============================== OVERVIEW ============================== -->
+            <section data-panel="overview" class="tl-panel">
+                <div class="tl-hero">
+                    <h1 id="tlHeroTitle">How much does each guardrail catch?</h1>
+                    <p><span id="tlHeroCounts">Hand-written test cases</span> run against the live <code>guardrail-proxy</code>.
+                       Each attack runs against every layer on its own, then with all layers on.</p>
+                </div>
+                <div class="tl-kpis" id="tlKpis"></div>
+                <div class="tl-card" id="tlHoldoutCard" hidden>
+                    <h2>Held-out vs tuning, and by source</h2>
+                    <p class="tl-sub">Held-out cases were never looked at while tuning rules, so they are the honest estimate. Ranges are 95% confidence intervals.</p>
+                    <div class="tl-table-wrap"><table class="tl-table" id="tlHoldout"></table></div>
+                </div>
+                <div class="tl-card">
+                    <h2>Catch rate by layer (each layer on its own)</h2>
+                    <p class="tl-sub" id="tlLayersSub"></p>
+                    <div class="tl-layers" id="tlLayers"></div>
+                </div>
+                <div class="tl-grid2">
+                    <div class="tl-card">
+                        <h2>Who catches it first (all layers on)</h2>
+                        <p class="tl-sub">The cheapest layer that recognises an attack stops it; later layers never see it.</p>
+                        <div id="tlFirst"></div>
+                    </div>
+                    <div class="tl-card">
+                        <h2>Only one layer catches it</h2>
+                        <p class="tl-sub">Remove that layer and these attacks get through. Click an ID for details.</p>
+                        <div id="tlUnique"></div>
+                    </div>
+                    <div class="tl-card">
+                        <h2>Gaps</h2>
+                        <p class="tl-sub">Attacks no layer caught, and safe prompts that were blocked.</p>
+                        <div id="tlGaps"></div>
+                    </div>
+                </div>
+                <div class="tl-card">
+                    <h2>By OWASP category</h2>
+                    <p class="tl-sub">% of attacks caught. "All on" is defense in depth; API cases are handled by Apigee platform controls. Click a row to see its cases.</p>
+                    <div class="tl-table-wrap"><table class="tl-table" id="tlHeat"></table></div>
+                </div>
+                <p class="tl-sub" id="tlFootnote">Results come from a small set of hand-written cases, not a statistical benchmark. LLM-based layers (Model Armor, NeMo) can vary slightly between runs; inconsistent cases are re-run and marked flaky.</p>
+            </section>
+
+            <!-- ============================== RESULTS =============================== -->
+            <section data-panel="results" class="tl-panel" hidden>
+                <div class="tl-card tl-card-flush">
+                    <div class="tl-filters tl-sticky-filters">
+                        <input type="search" id="fSearch" placeholder="Search ID, title, technique…" aria-label="Search cases">
+                        <select id="fFramework" aria-label="Framework"><option value="">All frameworks</option></select>
+                        <select id="fOwasp" aria-label="OWASP item"><option value="">All OWASP items</option></select>
+                        <select id="fGroup" aria-label="Category"><option value="">All categories</option></select>
+                        <select id="fResult" aria-label="Result">
+                            <option value="">All results</option>
+                            <option value="caught">Attack caught (all on)</option>
+                            <option value="missed">Attack missed (all on)</option>
+                            <option value="fp">Safe prompt blocked</option>
+                            <option value="benign-ok">Safe prompt passed</option>
+                            <option value="flaky">Inconsistent (flaky)</option>
+                        </select>
+                        <select id="fLang" aria-label="Language"><option value="">All languages</option></select>
+                        <button type="button" class="tl-btn" id="btnReveal" aria-pressed="false">Show prompts</button>
+                        <button type="button" class="tl-btn" id="btnCsv">Export CSV</button>
+                        <span class="tl-count" id="fCount"></span>
+                    </div>
+                    <div class="tl-quick" id="tlQuick" role="group" aria-label="Quick filters"></div>
+                    <table class="tl-table tl-results" id="tlCases"></table>
+                    <nav class="tl-pager" id="tlPager" aria-label="Results pages"></nav>
+                </div>
+            </section>
+
+            <!-- ============================== CATALOGUE ============================= -->
+            <section data-panel="catalogue" class="tl-panel" hidden>
+                <div class="tl-card">
+                    <div class="tl-filters">
+                        <input type="search" id="cSearch" placeholder="Search the catalogue…" aria-label="Search the catalogue">
+                        <select id="cGroup" aria-label="Category"><option value="">All categories</option></select>
+                        <button type="button" class="tl-btn" id="cReveal" aria-pressed="false">Show prompts</button>
+                        <span class="tl-count" id="cCount"></span>
+                    </div>
+                    <nav class="tl-cat-nav" id="cNav" aria-label="Jump to category"></nav>
+                    <div id="tlCatalogue"></div>
+                </div>
+            </section>
+
+            <!-- ============================== COVERAGE ============================== -->
+            <section data-panel="coverage" class="tl-panel" hidden>
+                <div class="tl-card">
+                    <h2>OWASP coverage map</h2>
+                    <p class="tl-sub">Every item in both OWASP lists: what the suite tests, and why the rest can't be exercised through a guardrail gateway.</p>
+                    <div class="tl-table-wrap"><table class="tl-table" id="tlCoverage"></table></div>
+                </div>
+            </section>
+        </main>
+        </div>
+        <div class="tl-drawer-backdrop" id="tlWhyBackdrop" hidden></div>
+        <aside class="tl-drawer" id="tlWhy" role="dialog" aria-modal="true" aria-labelledby="tlWhyTitle" hidden>
+            <header class="tl-drawer-head">
+                <div>
+                    <div class="tl-drawer-kicker" id="tlWhyKicker"></div>
+                    <h2 id="tlWhyTitle"></h2>
+                </div>
+                <button type="button" class="tl-drawer-close" id="tlWhyClose" aria-label="Close explanation">✕</button>
+            </header>
+            <div class="tl-drawer-body" id="tlWhyBody"></div>
+        </aside>
+        <div class="tl-toast" id="tlToast" role="status" aria-live="polite" hidden></div>
+    </div>
+    <script src="testlab/testlab.js"></script>
+</body>
+</html>

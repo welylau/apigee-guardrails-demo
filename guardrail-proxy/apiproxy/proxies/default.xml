@@ -2,6 +2,11 @@
 <ProxyEndpoint name="default">
     <PreFlow name="PreFlow">
         <Request>
+            <!-- API key only in the x-apikey header: reject keys sent in the URL (OWASP API2). -->
+            <Step>
+                <Condition>request.verb != "OPTIONS" and (request.queryparam.apikey != null or request.queryparam.key != null)</Condition>
+                <Name>RF-APIKey-In-URL</Name>
+            </Step>
             <Step>
                 <Condition>request.verb != "OPTIONS"</Condition>
                 <Name>AM-Resolve-APIKey</Name>
@@ -10,6 +15,29 @@
                 <Condition>request.verb != "OPTIONS"</Condition>
                 <Name>VAK-Verify-API-Key</Name>
             </Step>
+            <!-- P3: per-app burst + quota limits (rates from the app's API product), before any guardrail work. -->
+            <Step>
+                <Condition>request.verb != "OPTIONS"</Condition>
+                <Name>SA-Per-App</Name>
+            </Step>
+            <Step>
+                <Condition>request.verb != "OPTIONS"</Condition>
+                <Name>Q-Per-App</Name>
+            </Step>
+            <!-- P1: allow-list the body (no client overrides, text-only parts) and build the
+                 all-turns inspection text used by Model Armor and NeMo. P2: size / turn limits. -->
+            <Step>
+                <Condition>request.verb = "POST"</Condition>
+                <Name>JS-Request-Validate</Name>
+            </Step>
+            <Step>
+                <Condition>reqval.too_large = "true"</Condition>
+                <Name>RF-Request-Too-Large</Name>
+            </Step>
+            <Step>
+                <Condition>reqval.reject = "true"</Condition>
+                <Name>RF-Request-Rejected</Name>
+            </Step>
             <Step>
                 <Condition>request.verb != "OPTIONS" and (request.header.x-static-guardrails != "disable" or request.header.x-static-outbound != "disable")</Condition>
                 <Name>FC-StaticGuardrails</Name>
@@ -17,6 +45,12 @@
             <Step>
                 <Condition>request.verb != "OPTIONS"</Condition>
                 <Name>AM-Set-Guardrail-Flags</Name>
+            </Step>
+            <!-- Model Armor preset (x-ma-profile: strict | balanced | permissive, default balanced) ->
+                 ma.template_in / ma.template_out. Runs unconditionally so SMR in the EventFlow has a template. -->
+            <Step>
+                <Condition>request.verb != "OPTIONS"</Condition>
+                <Name>JS-MA-Resolve-Profile</Name>
             </Step>
             <Step>
                 <Condition>request.verb != "OPTIONS" and flow.enable_inbound != "disable"</Condition>
@@ -48,6 +82,10 @@
                 <Condition>nemo.enabled = "true"</Condition>
                 <Name>AM-NeMo-Response-Flags</Name>
             </Step>
+            <Step>
+                <Condition>ma.profile != null</Condition>
+                <Name>AM-MA-Response-Flags</Name>
+            </Step>
         </Response>
     </PreFlow>
     <PostFlow name="PostFlow">
@@ -75,6 +113,15 @@
         </Response>
     </PostClientFlow>
     <Flows/>
+    <FaultRules>
+        <!-- P3: JSON 429 for burst / quota limits. -->
+        <FaultRule name="rate-limited">
+            <Step>
+                <Name>AM-Rate-Limited</Name>
+            </Step>
+            <Condition>(fault.name = "SpikeArrestViolation") or (fault.name = "QuotaViolation")</Condition>
+        </FaultRule>
+    </FaultRules>
     <!-- On any fault (Model Armor / NeMo / static block) the response PreFlow is skipped; add the
          same verdict headers so clients and the demo UI still see what Static flagged. Headers only:
          the fault status and body are unchanged. -->
@@ -86,6 +133,10 @@
         <Step>
             <Condition>nemo.enabled = "true"</Condition>
             <Name>AM-NeMo-Response-Flags</Name>
+        </Step>
+        <Step>
+            <Condition>ma.profile != null</Condition>
+            <Name>AM-MA-Response-Flags</Name>
         </Step>
         <AlwaysEnforce>true</AlwaysEnforce>
     </DefaultFaultRule>

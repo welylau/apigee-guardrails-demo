@@ -81,6 +81,11 @@
                     <span>Architecture</span>
                 </button>
 
+                <a class="admin-nav-btn" id="btnTestLab" href="testlab.html" target="guardrail-testlab" title="OWASP-aligned test cases and how much each guardrail catches (opens in a new tab)">
+                    <span class="nav-btn-icon">🧪</span>
+                    <span>Test Lab</span>
+                </a>
+
                 <button type="button" class="admin-nav-btn" id="btnScrollToAdmin" title="View Model Armor Admin Analytics & Logs">
                     <span class="nav-btn-icon">📊</span>
                     <span>Admin Panel</span>
@@ -120,6 +125,16 @@
                     <button type="button" class="disclaimer-close-btn" id="disclaimerCloseBtn" title="Dismiss">&times;</button>
                 </div>
 
+                <!-- Start here: comparison of the three layers (opens the "When to choose what" modal) -->
+                <button type="button" class="pol-compare-cta pol-compare-top" id="btnCompareDetails" aria-haspopup="dialog" aria-controls="compareModalOverlay" title="Comparative breakdown of Static, Model Armor, and NeMo">
+                    <span class="pol-compare-icon" aria-hidden="true">⚖</span>
+                    <span class="pol-compare-text">
+                        <strong>When to choose what</strong>
+                        <small>Static vs Model Armor vs NeMo</small>
+                    </span>
+                    <span class="pol-compare-arrow" aria-hidden="true">→</span>
+                </button>
+
                 <!-- Section 1: Test Scenario (tabs rendered from SCENARIO_GROUPS / SCENARIOS in app.js) -->
                 <div class="panel-section scenarios-section scn-card">
                     <div class="section-header">
@@ -135,60 +150,29 @@
                     <div id="scenarioGroups" class="scn-chips" role="tabpanel"></div>
                 </div>
 
-                <!-- Section 2: Prompt Input & Trigger Bar -->
-                <div class="panel-section prompt-box-section">
-                    <div class="section-header">
-                        <div class="header-icon-title">
-                            <h3>Prompt</h3>
-                        </div>
-                        <span id="charCount" class="char-badge">0 / 4096</span>
-                    </div>
-
-                    <textarea id="promptInput" rows="4" placeholder="Enter prompt to test SSE streaming guardrails..."></textarea>
-
-                    <div id="scenarioExpect" class="scn-expect" aria-live="polite" hidden>
-                        <div><span class="scn-expect-label">Expected:</span> <span id="scenarioExpectText"></span></div>
-                        <div class="scn-expect-layers" id="scenarioExpectLayers" hidden></div>
-                    </div>
-
-                    <div class="execution-actions">
-                        <button type="button" id="btnRunStream" class="btn-primary-run">
-                            <span>⚡ Run Streaming Request (SSE)</span>
-                        </button>
-
-                        <div class="utility-btns">
-                            <button type="button" id="btnResetAll" class="btn-util" title="Reset all fields, metrics, and cancel active stream">
-                                <span>🔄 Reset All</span>
-                            </button>
-                            <button type="button" id="btnClear" class="btn-util" title="Clear streaming output">
-                                <span>Clear Output</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Section 3: Inspection Policies (one grid row per layer; help behind ⓘ) -->
+                <!-- Section 2: Inspection Policies (one grid row per layer; help behind ⓘ).
+                     Sits between Scenario and Prompt so the layers a scenario sets are visible before Run. -->
                 <div class="panel-section pol-card" id="policiesSection">
                     <div class="section-header">
                         <div class="header-icon-title">
                             <h3>Inspection Policies</h3>
                         </div>
                         <div class="pol-presets" id="policyPresets" role="group" aria-label="Global policy presets">
-                            <button type="button" class="pol-preset" data-preset="strict" title="Static In/Out: Enforce, profile Strict · Model Armor In/Out: On · NeMo: Enforce">Strict</button>
-                            <button type="button" class="pol-preset" data-preset="safeflow" title="Static In: Enforce, Out: Redact, profile Balanced · Model Armor In/Out: On · NeMo: Enforce">Safe-flow</button>
+                            <button type="button" class="pol-preset" data-preset="strict" title="Static In/Out: Enforce, profile Strict · Model Armor In/Out: On, preset Strict · NeMo: Enforce">Strict</button>
+                            <button type="button" class="pol-preset" data-preset="safeflow" title="Static In: Enforce, Out: Redact, profile Balanced · Model Armor In/Out: On, preset Balanced · NeMo: Enforce">Safe-flow</button>
                             <button type="button" class="pol-preset" data-preset="observe" title="Static In/Out: Monitor · Model Armor: Off (no monitor mode) · NeMo: Monitor">Observe</button>
                             <button type="button" class="pol-preset" data-preset="off" title="All layers Off">Off</button>
                         </div>
                     </div>
 
-                    <div class="pol-summary" id="policiesSummary" hidden></div>
+                    <button type="button" class="pol-summary" id="policiesSummary" aria-controls="policiesGrid" title="Layers currently set. Click to show and edit them." hidden></button>
 
                     <div class="pol-grid" id="policiesGrid" role="table" aria-label="Guardrail layers by direction">
                         <div class="pol-row pol-head" role="row">
                             <span role="columnheader">Layer</span>
                             <span role="columnheader">In</span>
                             <span role="columnheader">Out</span>
-                            <span role="columnheader" title="Static: balanced / strict profile · Model Armor: confidence levels in the template · NeMo: which rail runs">Profile</span>
+                            <span role="columnheader" title="Static: balanced / strict profile · Model Armor: strict / balanced / permissive preset (which template runs) · NeMo: which rail runs">Profile</span>
                         </div>
 
                         <!-- Static Guardrails: Apigee StaticGuardrails SharedFlow (regex + JS, no model call) -->
@@ -224,7 +208,7 @@
                         <div class="pol-row pol-ma" role="row">
                             <span class="pol-name" role="cell" title="Google Cloud Model Armor via SanitizeUserPrompt (SUP) and SanitizeModelResponse (SMR)">
                                 <span>Model Armor</span>
-                                <button type="button" class="pol-info" id="btnMaDetails" aria-haspopup="dialog" aria-controls="maModalOverlay" title="Google Cloud Model Armor · SUP (ma-ai-gw-inbound) + SMR (ma-ai-gw-outbound, streaming EventFlow). Click for details.">ⓘ</button>
+                                <button type="button" class="pol-info" id="btnMaDetails" aria-haspopup="dialog" aria-controls="maModalOverlay" title="Google Cloud Model Armor · SUP (guardrail-proxy-in-&lt;preset&gt;) + SMR (guardrail-proxy-out-&lt;preset&gt;, streaming EventFlow). Click for details.">ⓘ</button>
                             </span>
                             <span role="cell">
                                 <button type="button" class="pol-switch" id="maInMode" role="switch" data-value="enforce" aria-label="Model Armor inbound (SanitizeUserPrompt)">
@@ -237,8 +221,11 @@
                                 </button>
                             </span>
                             <span role="cell">
-                                <a class="pol-template-link" id="maTemplateLink" href="https://docs.cloud.google.com/model-armor/manage-templates" target="_blank" rel="noopener noreferrer"
-                                   title="Model Armor has no profile switch here: the confidence level of each filter (responsible AI, prompt injection & jailbreak, sensitive data, malicious URLs) is set in its template. Opens the Model Armor docs.">Template ↗</a>
+                                <select class="pol-select" id="maProfile" data-value="balanced" aria-label="Model Armor preset (template confidence level)">
+                                    <option value="strict">Strict</option>
+                                    <option value="balanced">Balanced</option>
+                                    <option value="permissive">Permissive</option>
+                                </select>
                             </span>
                         </div>
 
@@ -257,18 +244,60 @@
                             </span>
                             <span role="cell" class="pol-na" title="Inbound only">—</span>
                             <span role="cell">
-                                <select class="pol-select" id="nemoProfile" data-value="jailbreak_self_check" aria-label="NeMo Guardrails rail profile">
+                                <select class="pol-select" id="nemoProfile" data-value="topic_control" aria-label="NeMo Guardrails rail profile">
                                     <option value="jailbreak_self_check">Jailbreak</option>
                                     <option value="content_safety">Safety</option>
+                                    <option value="all_rails">All rails</option>
                                     <option value="topic_control">Topic</option>
                                 </select>
                             </span>
                         </div>
                     </div>
 
+                    <!-- NeMo business persona (Topic rail only): picker + the rules the judge will apply -->
+                    <div class="pol-persona" id="nemoPersonaBox" hidden>
+                        <div class="pol-persona-head">
+                            <label for="nemoPersona" class="pol-persona-label">NeMo persona</label>
+                            <select class="pol-select pol-persona-select" id="nemoPersona" aria-label="NeMo business persona" title="Which business rules NeMo's topic rail enforces"></select>
+                            <span class="pol-persona-hint">Switch persona, run the same prompt, compare verdicts</span>
+                        </div>
+                        <div class="pol-persona-rules" id="nemoPersonaRules" aria-live="polite"></div>
+                    </div>
+
                     <div class="pol-footer">
-                        <button type="button" class="pol-link" id="btnCompareDetails" aria-haspopup="dialog" aria-controls="compareModalOverlay" title="Comparative breakdown of Static, Model Armor, and NeMo">⚖ When to choose what</button>
                         <button type="button" class="pol-link" id="policiesCollapseToggle" aria-expanded="true" aria-controls="policiesGrid">Collapse ▴</button>
+                    </div>
+                </div>
+
+                <!-- Section 3: Prompt Input & Trigger Bar (Run bar sticks to the bottom of the panel) -->
+                <div class="panel-section prompt-box-section">
+                    <div class="section-header">
+                        <div class="header-icon-title">
+                            <h3>Prompt</h3>
+                        </div>
+                        <span id="charCount" class="char-badge">0 / 4096</span>
+                    </div>
+
+                    <textarea id="promptInput" rows="4" placeholder="Enter prompt to test SSE streaming guardrails..."></textarea>
+
+                    <div id="scenarioExpect" class="scn-expect" aria-live="polite" hidden>
+                        <div><span class="scn-expect-label">Expected:</span> <span id="scenarioExpectText"></span></div>
+                        <div class="scn-expect-layers" id="scenarioExpectLayers" hidden></div>
+                    </div>
+
+                    <div class="execution-actions">
+                        <button type="button" id="btnRunStream" class="btn-primary-run">
+                            <span>⚡ Run Streaming Request (SSE)</span>
+                        </button>
+
+                        <div class="utility-btns">
+                            <button type="button" id="btnResetAll" class="btn-util" title="Reset all fields, metrics, and cancel active stream">
+                                <span>🔄 Reset All</span>
+                            </button>
+                            <button type="button" id="btnClear" class="btn-util" title="Clear streaming output">
+                                <span>Clear Output</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -456,6 +485,15 @@
         </div>
 
         <div class="admin-drawer-content" id="adminDrawerContent">
+            <!-- Test Lab summary (latest saved run of the 100-case OWASP suite; filled by app.js) -->
+            <a class="testlab-summary" id="testlabSummary" href="testlab.html" target="guardrail-testlab" hidden>
+                <span class="testlab-summary-icon" aria-hidden="true">🧪</span>
+                <span class="testlab-summary-body">
+                    <span class="testlab-summary-title">Guardrail Test Lab <span class="testlab-summary-run" id="testlabSummaryRun"></span></span>
+                    <span class="testlab-summary-stats" id="testlabSummaryStats"></span>
+                </span>
+                <span class="testlab-summary-cta">Open report ↗</span>
+            </a>
             <!-- Toolbar: Time filter & Refresh Data Button -->
             <div class="admin-toolbar">
                 <div class="admin-filter-group">
@@ -897,8 +935,19 @@
                 <p class="nemo-lead">A Google Cloud service that enhances the security and safety of AI applications by <strong>proactively screening LLM prompts and responses</strong>. Whether AI runs on Google Cloud or another cloud, it helps prevent malicious input, verify content safety, protect sensitive data, maintain compliance, and enforce AI safety and security policies consistently.</p>
 
                 <div class="nemo-section">
-                    <div class="modal-section-title">Tuning Model Armor — the template is its "profile"</div>
-                    <p>Model Armor has no balanced / strict switch in this UI. Its sensitivity is set in the <strong>template</strong> used by each policy (<code>ma-ai-gw-inbound</code> for prompts, <code>ma-ai-gw-outbound</code> for responses): choose which filters run and the <strong>confidence level</strong> for each one (responsible AI categories, prompt injection &amp; jailbreak, sensitive data protection, malicious URLs). A lower confidence threshold catches more but may block more legitimate prompts.
+                    <div class="modal-section-title">Presets — Strict vs Balanced (default) vs Permissive</div>
+                    <p>Model Armor's sensitivity lives in its <strong>template</strong>. This demo has one template per preset and direction (<code>guardrail-proxy-in-&lt;preset&gt;</code> for prompts, <code>guardrail-proxy-out-&lt;preset&gt;</code> for responses). Pick the preset in the <strong>Profile</strong> column (header <code>x-ma-profile</code>); the proxy only accepts the three preset names and reports the template it used in <code>x-ma-template-in</code> / <code>x-ma-template-out</code>.</p>
+                    <table class="compare-table">
+                        <thead><tr><th>Filter</th><th>Strict</th><th>Balanced</th><th>Permissive</th></tr></thead>
+                        <tbody>
+                            <tr><td>Responsible AI (hate, harassment, sexual, dangerous)</td><td>Low and above</td><td>Medium and above</td><td>High only</td></tr>
+                            <tr><td>Prompt injection &amp; jailbreak — prompts</td><td>Low and above</td><td>Medium and above</td><td>High only</td></tr>
+                            <tr><td>Prompt injection &amp; jailbreak — responses</td><td>High</td><td>High</td><td>High</td></tr>
+                            <tr><td>Sensitive data (APAC IDs, cards, IBAN, GCP keys) · malicious URLs</td><td colspan="3">Same in every preset (no confidence level)</td></tr>
+                        </tbody>
+                    </table>
+                    <p>"Low" means the filter fires on weaker evidence: it catches more and blocks more legitimate prompts. Responses keep prompt-injection detection at High so answers that merely <em>discuss</em> injection are not cut off. Multi-language detection is on in all presets. Measured directly against Model Armor on 240 attacks + 240 benign prompts: permissive catches 46% and blocks 1% of benign prompts, balanced 53% / 2%, strict 72% / 12% (e.g. <em>"How do I best punch a punching bag?"</em>).</p>
+                    <p><strong>Production advice:</strong> uniform levels make the trade-off easy to see in a demo, but a realistic strict template lowers only <em>prompt injection &amp; jailbreak</em> to Low and keeps responsible AI at Medium. On the same benchmark that catches 62% of attacks while blocking 3% of benign prompts, instead of 72% / 12%. Tune per filter against your own traffic, and keep separate templates per application.
                     <a class="pol-template-link" href="https://docs.cloud.google.com/model-armor/manage-templates" target="_blank" rel="noopener noreferrer">Create and manage Model Armor templates ↗</a></p>
                 </div>
 
@@ -960,14 +1009,14 @@
                                         <div class="nemo-step-pill">
                                             <span class="nemo-step-num">1</span>
                                             <div>
-                                                <strong>Inbound Template (<code>ma-ai-gw-inbound</code>)</strong>
+                                                <strong>Inbound Template (<code>guardrail-proxy-in-&lt;preset&gt;</code>)</strong>
                                                 <p>Prompt Injection, Jailbreak, RAI Safety &amp; Sensitive Data Protection</p>
                                             </div>
                                         </div>
                                         <div class="nemo-step-pill">
                                             <span class="nemo-step-num">2</span>
                                             <div>
-                                                <strong>Outbound Template (<code>ma-ai-gw-outbound</code>)</strong>
+                                                <strong>Outbound Template (<code>guardrail-proxy-out-&lt;preset&gt;</code>)</strong>
                                                 <p>Sensitive Data Protection, RAI Safety &amp; Malicious URL scanning</p>
                                             </div>
                                         </div>
@@ -1100,8 +1149,8 @@
                 <div class="nemo-section nemo-demo-box ma-demo-box">
                     <div class="modal-section-title">How this demo uses it</div>
                     <ul class="nemo-list nemo-list-compact">
-                        <li><strong>Inbound:</strong> Apigee <code>SanitizeUserPrompt</code> in the ProxyEndpoint with template <code>ma-ai-gw-inbound</code> — blocked prompts never reach Gemini.</li>
-                        <li><strong>Outbound:</strong> <code>SanitizeModelResponse</code> in the streaming <code>EventFlow</code> with template <code>ma-ai-gw-outbound</code> — cuts the SSE stream mid-flight on a violation.</li>
+                        <li><strong>Inbound:</strong> Apigee <code>SanitizeUserPrompt</code> in the ProxyEndpoint with template <code>guardrail-proxy-in-&lt;preset&gt;</code> — blocked prompts never reach Gemini.</li>
+                        <li><strong>Outbound:</strong> <code>SanitizeModelResponse</code> in the streaming <code>EventFlow</code> with template <code>guardrail-proxy-out-&lt;preset&gt;</code> — cuts the SSE stream mid-flight on a violation.</li>
                         <li>No custom code: native Apigee policies, authenticated with the proxy's service account.</li>
                     </ul>
                 </div>
@@ -1129,6 +1178,17 @@
             </div>
             <div class="modal-body nemo-modal-body">
                 <p class="nemo-lead">An open-source toolkit for adding <strong>programmable guardrails</strong> ("rails") to LLM-based conversational applications. Rails sit between the application code and the LLM and control its output — e.g. not talking about politics, answering specific requests in a set way, following a predefined dialog path, using a particular language style, or extracting structured data.</p>
+
+                <div class="nemo-section nemo-demo-box">
+                    <div class="modal-section-title">Why NeMo, on top of Static Guardrails + Model Armor?</div>
+                    <p class="nemo-gap-lead">The first two layers stop what is <strong>dangerous for everyone</strong>. NeMo stops what is <strong>off-limits for your business</strong>, even when the prompt is perfectly safe.</p>
+                    <ul class="nemo-list nemo-list-compact">
+                        <li><strong>Static Guardrails</strong>: "Is this a <em>known attack</em>?" Regex and word lists for SQLi, secrets, profanity.</li>
+                        <li><strong>Model Armor</strong>: "Is this <em>harmful</em>?" Google-managed detection of jailbreaks, toxicity, sensitive data and malicious URLs.</li>
+                        <li><strong>NeMo Guardrails</strong>: "Is this <em>allowed for this app</em>?" Your own topic, tone and conversation rules, written in plain language and judged by an LLM.</li>
+                    </ul>
+                    <p class="nemo-gap-example">Example: <em>"Which crypto should I buy right now?"</em> has no attack pattern (Static passes) and isn't harmful (Model Armor passes). This assistant must not give investment advice, so NeMo's topic rail blocks it. Because NeMo runs last, its ~1 s check only runs on traffic the cheaper layers already cleared.</p>
+                </div>
 
                 <div class="nemo-section">
                     <div class="modal-section-title">Architecture — How Apigee Calls NeMo Guardrails</div>
@@ -1387,7 +1447,7 @@
                             <img src="assets/nvidia-logo.svg" alt="NVIDIA">
                             <div>
                                 <h4>NeMo Guardrails</h4>
-                                <p>Keep the bot <strong>on-topic</strong> with custom policies</p>
+                                <p>Enforce <strong>your business rules</strong> (topics &amp; policy) the other two can't know</p>
                             </div>
                         </div>
                     </div>
@@ -1428,6 +1488,12 @@
                                     <td>Topic &amp; business-policy control</td>
                                 </tr>
                                 <tr>
+                                    <td class="dim-name"><strong>Knows your business rules?</strong></td>
+                                    <td>Only keywords you hard-code</td>
+                                    <td>No: universal safety categories</td>
+                                    <td><span class="cs-good">✓ Yes, in plain language</span></td>
+                                </tr>
+                                <tr>
                                     <td class="dim-name"><strong>Hard to bypass?</strong></td>
                                     <td><span class="cs-dots">●<i>●●</i></span> Low</td>
                                     <td><span class="cs-dots">●●<i>●</i></span> High</td>
@@ -1443,12 +1509,12 @@
                         </table>
                     </div>
 
-                    <div class="cs-tip">🎯 <strong>Best practice:</strong> layer all three: <span class="cs-chain">Static</span> → <span class="cs-chain">Model Armor</span> → <span class="cs-chain">NeMo</span>. Cheapest checks first.</div>
+                    <div class="cs-tip">🎯 <strong>Best practice:</strong> layer all three: <span class="cs-chain">Static</span> → <span class="cs-chain">Model Armor</span> → <span class="cs-chain">NeMo</span>. Static stops <strong>known attacks</strong>, Model Armor stops <strong>harmful content</strong>, and NeMo adds <strong>your business rules</strong>, which the first two can't know about.</div>
                 </div>
 
                 <!-- ===== DETAILED VIEW ===== -->
                 <div class="compare-view" data-view="detailed" hidden>
-                <p class="nemo-lead">Each of the three guardrail layers addresses AI safety, threat prevention, and compliance at different latency, cost, and intelligence boundaries. Use this guide to choose the optimal layer for your requirements or combine them into a <strong>defense-in-depth pipeline</strong>.</p>
+                <p class="nemo-lead">Three layers, three different jobs. Use one, or chain them <strong>cheapest first</strong>.</p>
 
                 <!-- Actionable Decision Cards: When to Choose What -->
                 <div class="compare-cards-grid">
@@ -1461,12 +1527,11 @@
                             </div>
                         </div>
                         <div class="choice-card-body">
-                            <p class="choice-when"><strong>Choose when you need:</strong></p>
+                            <p class="choice-when"><strong>Pick it for:</strong></p>
                             <ul>
-                                <li>Sub-100 ms (~80 ms) gateway-native threat prevention with <strong>zero external network hops</strong>.</li>
-                                <li>Stopping deterministic attacks: SQLi/XSS, known secrets (AWS keys, GCP tokens), card numbers (Luhn check), and rigid profanity lexicons.</li>
-                                <li>In-flight streaming redaction (<code>[REDACTED]</code>) directly at the API gateway.</li>
-                                <li><strong>$0 marginal cost:</strong> save LLM and API tokens on known attacks.</li>
+                                <li><strong>~80 ms</strong> checks with no network hop</li>
+                                <li>Known attacks: SQLi/XSS, leaked keys, card numbers, profanity</li>
+                                <li>Redacting secrets in the stream (<code>[REDACTED]</code>)</li>
                             </ul>
                         </div>
                     </div>
@@ -1480,12 +1545,11 @@
                             </div>
                         </div>
                         <div class="choice-card-body">
-                            <p class="choice-when"><strong>Choose when you need:</strong></p>
+                            <p class="choice-when"><strong>Pick it for:</strong></p>
                             <ul>
-                                <li>Turnkey, managed Google Cloud AI security <strong>without hosting or maintaining guardrail infrastructure</strong>.</li>
-                                <li>Protection against adversarial jailbreaks (DAN), prompt injection, and multilingual toxicity (ZH, JA, VI, TH).</li>
-                                <li>Sensitive Data Protection (SDP/DLP templates) and malicious URL inspection.</li>
-                                <li>Dual-phase screening: inbound prompts (<code>SUP</code>) and streaming tokens (<code>SMR</code> via Apigee EventFlow).</li>
+                                <li>Managed safety, <strong>nothing to host</strong></li>
+                                <li>Jailbreaks, prompt injection, toxicity in many languages</li>
+                                <li>Sensitive data and malicious URLs, on prompt (<code>SUP</code>) and stream (<code>SMR</code>)</li>
                             </ul>
                         </div>
                     </div>
@@ -1499,20 +1563,62 @@
                             </div>
                         </div>
                         <div class="choice-card-body">
-                            <p class="choice-when"><strong>Choose when you need:</strong></p>
+                            <p class="choice-when"><strong>Pick it for:</strong></p>
                             <ul>
-                                <li><strong>Domain &amp; topic boundaries:</strong> steering the model away from off-topic subjects (e.g. "Do not give cryptocurrency financial advice").</li>
-                                <li>Programmable conversational policies, multi-turn dialogue management, and Colang flows.</li>
-                                <li>Custom LLM-as-a-judge semantic evaluation where rigid regex or static classifiers are insufficient.</li>
-                                <li>When ~1-1.5s latency is acceptable for critical business compliance.</li>
+                                <li><strong>Your business rules</strong>, e.g. "no investment advice"</li>
+                                <li>Dialogue rules in Colang, incl. multi-turn</li>
+                                <li>Cases where ~1 s extra latency is acceptable</li>
                             </ul>
                         </div>
                     </div>
                 </div>
 
+                <!-- How NeMo complements Static + Model Armor -->
+                <div class="nemo-section nemo-demo-box">
+                    <div class="modal-section-title">Why add NeMo on top of Static + Model Armor?</div>
+                    <p class="nemo-gap-lead">Static and Model Armor stop what's <strong>dangerous for everyone</strong>. Only NeMo knows what's <strong>off-limits for your business</strong>.</p>
+                    <div class="compare-table-wrapper">
+                        <table class="compare-table cs-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 19%;"></th>
+                                    <th class="th-static"><div class="th-content"><img src="assets/apigee-logo.svg" alt=""><span>Static</span></div></th>
+                                    <th class="th-ma"><div class="th-content"><img src="assets/model-armor-logo.svg" alt=""><span>Model Armor</span></div></th>
+                                    <th class="th-nemo"><div class="th-content"><img src="assets/nvidia-logo.svg" alt=""><span>NeMo</span></div></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="dim-name"><strong>Question it answers</strong></td>
+                                    <td>"Is this a <strong>known attack</strong>?"</td>
+                                    <td>"Is this <strong>harmful for anyone</strong>?"</td>
+                                    <td>"Is this <strong>allowed for this app</strong>?"</td>
+                                </tr>
+                                <tr>
+                                    <td class="dim-name"><strong>Policy source</strong></td>
+                                    <td>Regex &amp; word lists you maintain</td>
+                                    <td>Google-managed safety categories</td>
+                                    <td>Your own rules, written in plain language</td>
+                                </tr>
+                                <tr>
+                                    <td class="dim-name"><strong>"Which crypto should I buy?"</strong></td>
+                                    <td><span class="cs-good">Pass</span> (no attack pattern)</td>
+                                    <td><span class="cs-good">Pass</span> (not harmful)</td>
+                                    <td><span class="cs-warn">Block</span> (investment advice is off-limits for this support assistant)</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <ul class="nemo-list nemo-list-compact">
+                        <li><strong>Not a duplicate:</strong> the first two are right to pass a safe prompt; NeMo adds the business decision.</li>
+                        <li><strong>Runs last:</strong> its ~1 s check only sees traffic the cheaper layers cleared.</li>
+                        <li><strong>No-code policy:</strong> topics and refusals live in NeMo config, not Apigee or Model Armor.</li>
+                    </ul>
+                </div>
+
                 <!-- Tabular Comparison -->
                 <div class="nemo-section">
-                    <div class="modal-section-title">Comprehensive Comparison Across Key Dimensions</div>
+                    <div class="modal-section-title">Side-by-side comparison</div>
                     <div class="compare-table-wrapper">
                         <table class="compare-table">
                             <thead>
@@ -1540,157 +1646,52 @@
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td class="dim-name">
-                                        <strong>Execution Model</strong>
-                                        <small>Where and how it runs</small>
-                                    </td>
-                                    <td>
-                                        <span class="table-chip chip-static">In-Process Runtime</span>
-                                        <p>Runs 100% inside Apigee JVM/Rhino JavaScript engine. Zero network hops.</p>
-                                    </td>
-                                    <td>
-                                        <span class="table-chip chip-ma">Managed Cloud Service</span>
-                                        <p>Google Cloud managed API called natively via Apigee service credentials.</p>
-                                    </td>
-                                    <td>
-                                        <span class="table-chip chip-nemo">External Container</span>
-                                        <p>Containerized service hosted on Cloud Run, invoked via Apigee ServiceCallout.</p>
-                                    </td>
+                                    <td class="dim-name"><strong>Runs in</strong><small>Where it executes</small></td>
+                                    <td><span class="table-chip chip-static">In-process</span><p>Apigee JavaScript. No network hop.</p></td>
+                                    <td><span class="table-chip chip-ma">Managed API</span><p>Google Cloud service, called from Apigee.</p></td>
+                                    <td><span class="table-chip chip-nemo">Your container</span><p>Cloud Run, via Apigee ServiceCallout.</p></td>
                                 </tr>
                                 <tr>
-                                    <td class="dim-name">
-                                        <strong>Latency Overhead (TTFT)</strong>
-                                        <small>Added time to first token</small>
-                                    </td>
-                                    <td>
-                                        <strong class="highlight-good">~80 ms</strong>
-                                        <p>In-memory string operations and regex matching; virtually imperceptible.</p>
-                                    </td>
-                                    <td>
-                                        <strong>~300 – 450 ms</strong>
-                                        <p>Fast managed HTTP roundtrip to Google Cloud Model Armor endpoint.</p>
-                                    </td>
-                                    <td>
-                                        <strong>~800 – 1500 ms</strong>
-                                        <p>Secondary LLM generation and self-check roundtrips per active rail.</p>
-                                    </td>
+                                    <td class="dim-name"><strong>Added latency</strong><small>Before first token</small></td>
+                                    <td><strong class="highlight-good">~80 ms</strong><p>In-memory regex.</p></td>
+                                    <td><strong>~300–450 ms</strong><p>One API round trip.</p></td>
+                                    <td><strong>~0.8–1.5 s</strong><p>One LLM-judge call per rail.</p></td>
                                 </tr>
                                 <tr>
-                                    <td class="dim-name">
-                                        <strong>Cost &amp; Pricing</strong>
-                                        <small>Operational expense</small>
-                                    </td>
-                                    <td>
-                                        <strong class="highlight-good">$0 marginal cost</strong>
-                                        <p>Included in standard Apigee gateway API calls. Saves tokens downstream.</p>
-                                    </td>
-                                    <td>
-                                        <strong>Low API usage fee</strong>
-                                        <p>Pay-per-request pricing based on inspected character/token count.</p>
-                                    </td>
-                                    <td>
-                                        <strong>Cloud Run + Model Tokens</strong>
-                                        <p>Cloud Run compute plus token cost for every guardrail LLM inference call.</p>
-                                    </td>
+                                    <td class="dim-name"><strong>Cost</strong><small>Per request</small></td>
+                                    <td><strong class="highlight-good">$0 extra</strong><p>Part of the Apigee call.</p></td>
+                                    <td><strong>Pay per scan</strong><p>Priced on inspected text.</p></td>
+                                    <td><strong>Cloud Run + tokens</strong><p>Every judge call uses an LLM.</p></td>
                                 </tr>
                                 <tr>
-                                    <td class="dim-name">
-                                        <strong>Core Strengths</strong>
-                                        <small>What it detects best</small>
-                                    </td>
-                                    <td>
-                                        <ul>
-                                            <li>Known injection signatures</li>
-                                            <li>Hardcoded credentials (AWS, GCP keys)</li>
-                                            <li>Card numbers (Luhn checksum) &amp; PII</li>
-                                            <li>Explicit profanity &amp; death-wish lexicons</li>
-                                            <li>Oversized / malformed JSON payloads</li>
-                                        </ul>
-                                    </td>
-                                    <td>
-                                        <ul>
-                                            <li>Jailbreaks (DAN, roleplay exploits)</li>
-                                            <li>Prompt injection attacks</li>
-                                            <li>Multilingual toxicity (ZH, JA, VI, TH)</li>
-                                            <li>Sensitive Data Protection (SDP/DLP)</li>
-                                            <li>Phishing &amp; malicious URLs</li>
-                                        </ul>
-                                    </td>
-                                    <td>
-                                        <ul>
-                                            <li>Conversational topic boundaries</li>
-                                            <li>Domain-specific policy adherence</li>
-                                            <li>Fact-checking &amp; hallucination rails</li>
-                                            <li>Multi-turn dialogue state tracking</li>
-                                            <li>Complex LLM-as-a-judge guidelines</li>
-                                        </ul>
-                                    </td>
+                                    <td class="dim-name"><strong>Best at</strong><small>What it catches</small></td>
+                                    <td><ul><li>Injection signatures (SQLi, XSS)</li><li>Leaked keys and card numbers</li><li>Profanity word lists</li><li>Oversized / malformed JSON</li></ul></td>
+                                    <td><ul><li>Jailbreaks and prompt injection</li><li>Toxicity in many languages</li><li>Sensitive data (SDP)</li><li>Malicious URLs</li></ul></td>
+                                    <td><ul><li>Topic and business-policy rules</li><li>Role-play jailbreaks</li><li>Multi-turn dialogue rules</li><li>Custom LLM-judge checks</li></ul></td>
                                 </tr>
                                 <tr>
-                                    <td class="dim-name">
-                                        <strong>Evasion Resistance</strong>
-                                        <small>Resistance to paraphrasing</small>
-                                    </td>
-                                    <td>
-                                        <span class="table-tag tag-low">Low</span>
-                                        <p>Can be bypassed by semantic paraphrasing or unfamiliar cipher/leetspeak variants.</p>
-                                    </td>
-                                    <td>
-                                        <span class="table-tag tag-high">High</span>
-                                        <p>ML-based classifiers evaluate semantic context and adversarial intent.</p>
-                                    </td>
-                                    <td>
-                                        <span class="table-tag tag-vhigh">Very High</span>
-                                        <p>Understands nuanced intent, context shifts, and semantic conversational subtleties.</p>
-                                    </td>
+                                    <td class="dim-name"><strong>Hard to bypass?</strong><small>Against rewording</small></td>
+                                    <td><span class="table-tag tag-low">Low</span><p>Rewording or leetspeak slips past.</p></td>
+                                    <td><span class="table-tag tag-high">High</span><p>ML classifiers read intent.</p></td>
+                                    <td><span class="table-tag tag-vhigh">Very high</span><p>An LLM judges meaning and context.</p></td>
                                 </tr>
                                 <tr>
-                                    <td class="dim-name">
-                                        <strong>Streaming (SSE) Support</strong>
-                                        <small>Handling live response tokens</small>
-                                    </td>
-                                    <td>
-                                        <strong>Inbound + Outbound</strong>
-                                        <p>64-character holdback window with real-time in-flight token redaction (<code>[REDACTED]</code>).</p>
-                                    </td>
-                                    <td>
-                                        <strong>Inbound + Outbound</strong>
-                                        <p>SUP on request; SMR evaluates sliding windows in EventFlow, cutting stream if unsafe.</p>
-                                    </td>
-                                    <td>
-                                        <strong>Inbound PreFlow</strong>
-                                        <p>Inspects initial prompt before forwarding; typically non-streaming for output rails.</p>
-                                    </td>
+                                    <td class="dim-name"><strong>Streaming (SSE)</strong><small>Live answer tokens</small></td>
+                                    <td><strong>In + Out</strong><p>Redacts in-flight (<code>[REDACTED]</code>).</p></td>
+                                    <td><strong>In + Out</strong><p>SMR can cut the stream mid-answer.</p></td>
+                                    <td><strong>In only</strong><p>Checks the prompt before Gemini.</p></td>
                                 </tr>
                                 <tr>
-                                    <td class="dim-name">
-                                        <strong>Rule Customization</strong>
-                                        <small>How rules are defined &amp; tuned</small>
-                                    </td>
-                                    <td>
-                                        <p><strong>Apigee Property Sets &amp; KVM:</strong> Regex patterns, word lists, and mode switches tuned without proxy redeployment.</p>
-                                    </td>
-                                    <td>
-                                        <p><strong>Google Cloud Templates:</strong> Centralized security templates with configurable filters and confidence thresholds.</p>
-                                    </td>
-                                    <td>
-                                        <p><strong>Colang &amp; YAML Configs:</strong> Declarative dialogue flows, guardrail action definitions, and system prompts.</p>
-                                    </td>
+                                    <td class="dim-name"><strong>Tuned with</strong><small>Where rules live</small></td>
+                                    <td><p><strong>Property set / KVM:</strong> regex and word lists, no redeploy.</p></td>
+                                    <td><p><strong>Templates:</strong> filters and confidence levels.</p></td>
+                                    <td><p><strong>Colang / YAML:</strong> rails, flows and prompts.</p></td>
                                 </tr>
                                 <tr>
-                                    <td class="dim-name">
-                                        <strong>False Positive Risk</strong>
-                                        <small>Likelihood of blocking safe input</small>
-                                    </td>
-                                    <td>
-                                        <p><strong>Very Low</strong> for specific signatures/PII; <strong>Moderate</strong> if keyword deny-lists are too generic.</p>
-                                    </td>
-                                    <td>
-                                        <p><strong>Low:</strong> Calibrated confidence levels (High / Medium / Low) allow fine-tuning safety vs usability.</p>
-                                    </td>
-                                    <td>
-                                        <p><strong>Moderate:</strong> Depends on judge LLM prompts; can occasionally misjudge ambiguous benign prompts.</p>
-                                    </td>
+                                    <td class="dim-name"><strong>False positives</strong><small>Blocking safe input</small></td>
+                                    <td><p><strong>Very low</strong> for signatures; higher with broad word lists.</p></td>
+                                    <td><p><strong>Low:</strong> adjustable confidence levels.</p></td>
+                                    <td><p><strong>Moderate:</strong> depends on the judge prompt.</p></td>
                                 </tr>
                             </tbody>
                         </table>
@@ -1701,13 +1702,13 @@
                 <div class="compare-best-practice">
                     <div class="bp-icon">🎯</div>
                     <div class="bp-content">
-                        <h5>Recommended Pattern: Multi-Layered Defense-in-Depth</h5>
-                        <p>In enterprise architectures, these layers are not mutually exclusive—they work best when combined sequentially:</p>
+                        <h5>Recommended: chain all three, cheapest first</h5>
                         <ol>
-                            <li><strong>Layer 1 (Static Guardrails):</strong> Immediately eliminates 75–85% of automated attacks, credential leaks, and oversized payloads in ~80 ms at $0 cost.</li>
-                            <li><strong>Layer 2 (Model Armor):</strong> Evaluates remaining clean prompts for adversarial jailbreaks, prompt injection, and multilingual safety in ~300 ms before LLM inference.</li>
-                            <li><strong>Layer 3 (NeMo Guardrails):</strong> Enforces strict business topic compliance and conversation integrity for high-stakes enterprise use cases.</li>
+                            <li><strong>Static</strong> drops known attacks and leaked secrets (~80 ms, $0).</li>
+                            <li><strong>Model Armor</strong> catches jailbreaks, toxicity and sensitive data (~300 ms).</li>
+                            <li><strong>NeMo</strong> enforces your business rules on what's left (~1 s).</li>
                         </ol>
+                        <p>The first layer that recognises a prompt blocks it, so the slower layers only see clean traffic.</p>
                     </div>
                 </div>
                 </div>
@@ -1726,6 +1727,7 @@
     </div>
 
     <!-- Client Script -->
+    <script src="nemo-personas.js"></script>
     <script src="app.js"></script>
     <script type="module" src="tour/tour-engine.js"></script>
 </body>

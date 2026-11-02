@@ -3,7 +3,9 @@
     <DisplayName>SMR-modelresponse</DisplayName>
     <IgnoreUnresolvedVariables>true</IgnoreUnresolvedVariables>
     <ModelArmor>
-        <TemplateName>projects/YOUR_GCP_PROJECT_ID/locations/us/templates/ma-ai-gw-outbound</TemplateName>
+        <!-- guardrail-proxy-out-{strict|balanced|permissive}; set in the request flow by JS-MA-Resolve-Profile
+             and read here in the streaming EventFlow. -->
+        <TemplateName>projects/{organization.name}/locations/us/templates/{ma.template_out}</TemplateName>
     </ModelArmor>
     <LLMResponseSource>{response_partial}</LLMResponseSource>
 </SanitizeModelResponse>

@@ -42,6 +42,8 @@
         </Authentication>
         <Properties>
             <Property name="target.copy.pathsuffix">false</Property>
+            <!-- Client query parameters are never forwarded to Gemini (the URL below carries its own ?alt=sse). -->
+            <Property name="target.copy.queryparams">false</Property>
             <Property name="connect.timeout.millis">30000</Property>
             <Property name="io.timeout.millis">60000</Property>
         </Properties>

@@ -32,8 +32,12 @@ STREAMING_SSE_URL = os.environ.get("STREAMING_SSE_URL", "https://YOUR_APIGEE_HOS
 STATIC_MODES = ("enforce", "monitor", "disable")
 STATIC_OUT_MODES = ("enforce", "redact", "monitor", "disable")
 STATIC_PROFILES = ("balanced", "strict")
+# Model Armor presets -> guardrail-proxy-{in|out}-{preset} templates (resolved and allow-listed in the proxy too).
+MA_PROFILES = ("strict", "balanced", "permissive")
 NEMO_MODES = ("enforce", "monitor", "disable")
-NEMO_PROFILES = ("jailbreak_self_check", "content_safety", "topic_control")
+# topic_* personas are generated from nemo-guardrails/personas.json (build_personas.py --check verifies this list).
+NEMO_PROFILES = ("jailbreak_self_check", "content_safety", "all_rails", "topic_control",
+                 "topic_bank", "topic_healthcare", "topic_airline", "topic_telco", "topic_retail")
 LEGACY_PROXY_ALIASES = {"SMR-streaming-sse": "guardrail-proxy"}
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "YOUR_GCP_PROJECT_ID")
 
@@ -47,6 +51,23 @@ if not APIGEE_API_KEY:
     sys.stderr.write("WARNING: APIGEE_API_KEY is not set; calls to the Apigee proxies will be rejected (401).\n")
 
 ssl_ctx = ssl.create_default_context()
+
+# Fields that can carry an API credential. Apigee's client_id is the consumer key after VerifyAPIKey,
+# and older ML-Log-ModelArmor-* entries in Cloud Logging logged it as "clientId".
+SENSITIVE_KEYS = {"clientid", "client_id", "apikey", "api_key", "x-apikey", "x-api-key",
+                  "consumerkey", "consumer_key", "consumersecret", "authorization"}
+REDACTED = "[REDACTED]"
+
+
+def redact(obj):
+    """Return a copy of obj with credential fields and the configured API key removed."""
+    if isinstance(obj, dict):
+        return {k: (REDACTED if str(k).lower() in SENSITIVE_KEYS and v else redact(v)) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [redact(v) for v in obj]
+    if isinstance(obj, str) and APIGEE_API_KEY and APIGEE_API_KEY in obj:
+        return obj.replace(APIGEE_API_KEY, REDACTED)
+    return obj
 
 
 class AuditStore:
@@ -64,7 +85,10 @@ class AuditStore:
         if os.path.exists(self.filepath):
             try:
                 with open(self.filepath, "r", encoding="utf-8") as f:
-                    self.logs = json.load(f)
+                    loaded = json.load(f)
+                self.logs = redact(loaded)
+                if self.logs != loaded:  # scrub credentials from older saved entries
+                    self._save()
             except Exception as e:
                 sys.stderr.write(f"Error loading audit logs: {e}\n")
                 self.logs = []
@@ -182,11 +206,12 @@ class AuditStore:
             })
 
     def record(self, proxy, direction, prompt, status, blocked, payload, elapsed_ms, client_ip="127.0.0.1",
-               static=None, outcome=None):
+               static=None, outcome=None, ma=None):
         """Records a new live audit log entry from incoming proxy traffic.
 
         static  - {mode, profile, ma_in, verdict, flags, dampened} from the x-sg-* headers (rule IDs only)
         outcome - clean | static-in | static-out | ma-in | ma-out | nemo | error
+        ma      - {profile, template_in, template_out} from the x-ma-* headers
         """
         now = time.time()
         iso_ts = datetime.datetime.fromtimestamp(now, datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -226,6 +251,8 @@ class AuditStore:
             entry["static"] = static
         if outcome is not None:
             entry["outcome"] = outcome
+        if ma is not None:
+            entry["ma"] = ma
 
         with self.lock:
             self.logs.insert(0, entry)
@@ -285,6 +312,7 @@ class AuditStore:
                             continue
                         
                         ts_str = cl.get("timestamp", datetime.datetime.now(datetime.timezone.utc).isoformat())
+                        cl = redact(cl)  # older entries logged clientId (= the consumer key)
                         json_payload = cl.get("jsonPayload", {})
                         labels = cl.get("labels", {})
                         proxy_name = json_payload.get("proxy") or labels.get("proxy") or "guardrail-proxy"
@@ -574,6 +602,9 @@ class DemoHandler(http.server.BaseHTTPRequestHandler):
             static_profile = str(data.get("static_profile", "balanced")).lower()
             if static_profile not in STATIC_PROFILES:
                 static_profile = "balanced"
+            ma_profile = str(data.get("ma_profile", "balanced")).lower()
+            if ma_profile not in MA_PROFILES:
+                ma_profile = "balanced"
             nemo_mode = str(data.get("nemo_mode", "disable")).lower()
             if nemo_mode not in NEMO_MODES:
                 nemo_mode = "disable"
@@ -607,21 +638,33 @@ class DemoHandler(http.server.BaseHTTPRequestHandler):
 
         if clean_path.endswith("/api/streaming-sse"):
             self._handle_streaming_sse(prompt, encoded_payload, enable_inbound, enable_outbound, static_mode, static_out_mode,
-                                       nemo_mode, nemo_profile, static_profile)
+                                       nemo_mode, nemo_profile, static_profile, ma_profile)
         else:
             self.send_response(404)
             self._set_security_headers("application/json")
             self.end_headers()
             self.wfile.write(json.dumps({"error": "Endpoint not found"}).encode("utf-8"))
 
+    @staticmethod
+    def _ma_info(headers, ma_profile):
+        """Model Armor preset + templates actually used, from the proxy's x-ma-* headers."""
+        return {
+            "ma_profile": headers.get("x-ma-profile", "") or ma_profile,
+            "ma_template_in": headers.get("x-ma-template-in", "") or f"guardrail-proxy-in-{ma_profile}",
+            "ma_template_out": headers.get("x-ma-template-out", "") or f"guardrail-proxy-out-{ma_profile}",
+            "ma_from_proxy": bool(headers.get("x-ma-profile")),
+        }
+
     def _handle_streaming_sse(self, prompt, encoded_payload, enable_inbound=True, enable_outbound=True,
                               static_mode="enforce", static_out_mode="enforce",
-                              nemo_mode="disable", nemo_profile="jailbreak_self_check", static_profile="balanced"):
+                              nemo_mode="disable", nemo_profile="jailbreak_self_check", static_profile="balanced",
+                              ma_profile="balanced"):
         start_time = time.time()
         headers = {
             "Content-Type": "application/json",
             "x-inbound": "enable" if enable_inbound else "disable",
             "x-outbound": "enable" if enable_outbound else "disable",
+            "x-ma-profile": ma_profile,
             "x-static-guardrails": static_mode,
             "x-static-outbound": static_out_mode,
             "x-static-profile": static_profile,
@@ -674,6 +717,8 @@ class DemoHandler(http.server.BaseHTTPRequestHandler):
                     "nemo_elapsed_ms": resp.headers.get("x-nemo-elapsed-ms", ""),
                 }
                 self.wfile.write(f"event: nemo\ndata: {json.dumps(nemo_info)}\n\n".encode("utf-8"))
+                ma_info = self._ma_info(resp.headers, ma_profile)
+                self.wfile.write(f"event: ma\ndata: {json.dumps(ma_info)}\n\n".encode("utf-8"))
                 self.wfile.flush()
                 first_chunk = True
                 while True:
@@ -717,12 +762,15 @@ class DemoHandler(http.server.BaseHTTPRequestHandler):
                 elapsed_ms=total_ms,
                 client_ip=client_ip,
                 static=static_info,
-                outcome=outcome
+                outcome=outcome,
+                ma=ma_info
             )
 
         except urllib.error.HTTPError as e:
             elapsed_ms = int((time.time() - start_time) * 1000)
             err_body = e.read().decode("utf-8")
+            ma_info = self._ma_info(e.headers, ma_profile)
+            self.wfile.write(f"event: ma\ndata: {json.dumps(ma_info)}\n\n".encode("utf-8"))
             err_event = f"event: error\ndata: {json.dumps({'status': e.code, 'body': err_body})}\n\n".encode("utf-8")
             self.wfile.write(err_event)
             self.wfile.flush()
@@ -748,7 +796,8 @@ class DemoHandler(http.server.BaseHTTPRequestHandler):
                 elapsed_ms=elapsed_ms,
                 client_ip=client_ip,
                 static=static_info,
-                outcome=outcome
+                outcome=outcome,
+                ma=ma_info
             )
 
         except Exception as e:

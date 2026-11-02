@@ -10,6 +10,7 @@
         </Headers>
         <QueryParams>
             <QueryParam name="key"/>
+            <QueryParam name="apikey"/>
         </QueryParams>
     </Remove>
     <Set>

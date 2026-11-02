@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<RaiseFault async="false" continueOnError="false" enabled="true" name="RF-APIKey-In-URL">
+    <DisplayName>Reject API Key in URL</DisplayName>
+    <FaultResponse>
+        <Set>
+            <Headers>
+                <Header name="x-guardrail-engine">apigee-auth</Header>
+            </Headers>
+            <Payload contentType="application/json">{"error":{"engine":"apigee-auth","code":401,"message":"Send the API key in the x-apikey header, not in the URL. Keys in URLs end up in logs and browser history."}}</Payload>
+            <StatusCode>401</StatusCode>
+            <ReasonPhrase>Unauthorized</ReasonPhrase>
+        </Set>
+    </FaultResponse>
+    <IgnoreUnresolvedVariables>true</IgnoreUnresolvedVariables>
+</RaiseFault>

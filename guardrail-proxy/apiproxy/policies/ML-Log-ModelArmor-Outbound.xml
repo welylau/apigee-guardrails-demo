@@ -6,11 +6,12 @@
         <Message contentType="application/json">{
   "proxy": "{apiproxy.name}",
   "direction": "outbound",
+  "maProfile": "{ma.profile_out}",
+  "maTemplate": "{ma.template_out}",
   "organization": "{organization.name}",
   "environment": "{environment.name}",
   "developerApp": "{developer.app.name}",
   "developerEmail": "{developer.email}",
-  "clientId": "{client_id}",
   "faultName": "{fault.name}",
   "faultString": "{fault.faultstring}",
   "clientIp": "{client.ip}",

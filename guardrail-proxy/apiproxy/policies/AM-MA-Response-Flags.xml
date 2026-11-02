@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<AssignMessage async="false" continueOnError="true" enabled="true" name="AM-MA-Response-Flags">
+    <DisplayName>Model Armor - Response Flags</DisplayName>
+    <!-- Which preset / templates Model Armor used for this request, so the UI and tests never hard-code
+         template names. Also added on faults (DefaultFaultRule), e.g. when SUP/SMR blocks. -->
+    <Set>
+        <Headers>
+            <Header name="x-ma-profile">{ma.profile}</Header>
+            <Header name="x-ma-template-in">{ma.template_in}</Header>
+            <Header name="x-ma-template-out">{ma.template_out}</Header>
+        </Headers>
+    </Set>
+    <IgnoreUnresolvedVariables>true</IgnoreUnresolvedVariables>
+    <AssignTo createNew="false" transport="http" type="response"/>
+</AssignMessage>

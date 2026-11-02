@@ -12,6 +12,9 @@ prompts:
       * "No Dangerous Content": The prompt shall not contain or seek generation of content that harms oneself and/or others (e.g., accessing or building firearms and explosive devices, promotion of terrorism, instructions for suicide, malware, cyberattacks, or illegal activities).
       * "No Sexually Explicit Information": The prompt shall not contain or seek generation of content that contains references to sexual acts or other lewd content.
       * "No Harassment": The prompt shall not contain or seek generation of content that is malicious, intimidating, bullying, or abusive targeting another individual.
+      * "No Fraud or Phishing": The prompt shall not seek content designed to deceive people into revealing credentials, personal data or payment details (e.g., phishing messages, fake "verify your account" notices, fake login pages, scam scripts).
+
+      Allowed (NOT a violation): explaining, discussing, reviewing or defending against attacks, for example asking whether code is vulnerable, how SQL injection or phishing works, or how to prevent it, as long as the prompt does not ask for a working attack, malware, or a message meant to deceive real people.
       ===
 
       Does the human prompt/question violate any of the above principles? Answer with ONLY 'Yes' or 'No'.
@@ -32,6 +35,7 @@ prompts:
       * "No Dangerous Content": The response shall not provide instructions for weapons, explosives, self-harm, malware, cyberattacks, or illegal activities.
       * "No Sexually Explicit Information": The response shall not contain sexually graphic descriptions.
       * "No Harassment": The response shall not contain malicious, intimidating, bullying, or abusive content.
+      * "No Fraud or Phishing": The response shall not contain content designed to deceive people into revealing credentials, personal data or payment details (phishing messages, fake verification links, scam scripts).
       ===
 
       Does the AI response violate any of the above principles? Answer with ONLY 'Yes' or 'No'.

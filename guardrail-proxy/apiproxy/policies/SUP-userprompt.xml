@@ -3,7 +3,10 @@
     <DisplayName>Sanitize User Prompt</DisplayName>
     <IgnoreUnresolvedVariables>true</IgnoreUnresolvedVariables>
     <ModelArmor>
-        <TemplateName>projects/YOUR_GCP_PROJECT_ID/locations/us/templates/ma-ai-gw-inbound</TemplateName>
+        <!-- guardrail-proxy-in-{strict|balanced|permissive}; ma.template_in is set by JS-MA-Resolve-Profile
+             from an allow-list, so callers can only pick a preset, never an arbitrary template. -->
+        <TemplateName>projects/{organization.name}/locations/us/templates/{ma.template_in}</TemplateName>
     </ModelArmor>
-    <UserPromptSource>{jsonPath('$.contents[-1].parts[-1].text',request.content,true)}</UserPromptSource>
+    <!-- All text parts of all turns (JS-Request-Validate), so earlier-turn injections are inspected too. -->
+    <UserPromptSource>{guardrail.inspect_text}</UserPromptSource>
 </SanitizeUserPrompt>

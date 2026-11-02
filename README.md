@@ -16,6 +16,8 @@
 > **These phrases are included strictly and exclusively for testing, evaluating, and demonstrating the effectiveness of LLM safety guardrails and AI Gateway threat interception.**
 >
 > They do not reflect the opinions, values, beliefs, or endorsements of the repository author, Google, or its affiliates.
+>
+> **This is not an official Google product.**
 
 ---
 
@@ -27,9 +29,42 @@ No single guardrail catches everything, and each one has a different cost and la
 | :--- | :--- | :--- | :--- |
 | **Static Guardrails** | Inside Apigee (SharedFlow, JavaScript) | ~50–80 ms | Known patterns: SQL injection, leaked secrets, classic jailbreak phrases, multilingual abuse word lists. Can also **redact** secrets/PII in responses. |
 | **Model Armor** | Google Cloud API (`SanitizeUserPrompt` / `SanitizeModelResponse`) | ~400–800 ms | Meaning-based detection: prompt injection & jailbreak, harmful content (RAI), sensitive data (SDP), malicious URLs — in many languages, with no word lists to maintain. Works **mid-stream** on SSE responses. |
-| **NVIDIA NeMo Guardrails** | Cloud Run service called via ServiceCallout | ~0.8–1.2 s | LLM-as-judge rails: topic control (stay on-topic), role-play jailbreaks, content safety. |
+| **NVIDIA NeMo Guardrails** | Cloud Run service called via ServiceCallout | ~0.8–1.2 s | **Your business rules**, judged by an LLM: topic control (e.g. no investment advice), plus role-play jailbreaks and content safety. Catches prompts that are safe but not allowed for your app. |
 
 Requests that are blocked early generate **zero LLM tokens and zero inference cost**. For streamed responses, Model Armor can cut the stream the moment harmful content appears.
+
+### 🧩 How the layers complement each other
+
+Each layer answers a **different question**, so they don't duplicate each other:
+
+| Layer | Question it answers | Policy comes from |
+| :--- | :--- | :--- |
+| **Static Guardrails** | *"Is this a known attack?"* | Regex and word lists you maintain |
+| **Model Armor** | *"Is this harmful for anyone?"* | Google-managed safety and security categories |
+| **NeMo Guardrails** | *"Is this allowed for **this** app?"* | Your own business rules, in plain language |
+
+Static Guardrails and Model Armor stop what is **dangerous for everyone**. Neither one knows what is **off-limits for your business**, and that's the gap NeMo fills.
+
+> **Example:** *"Which cryptocurrency should I move my retirement savings into this week?"*
+> - **Static Guardrails** pass it: there is no attack pattern.
+> - **Model Armor** passes it: the prompt isn't harmful.
+> - **NeMo** blocks it: this support assistant must not give investment advice (`topic_control` rail).
+
+Because NeMo runs **last**, its ~1 s LLM-as-judge check is only spent on traffic the cheaper layers have already cleared. Its rules (topics, tone, refusals) live in NeMo config, so you can change business policy without touching Apigee policies or Model Armor templates.
+
+### 🎭 NeMo business personas
+
+Pick **NeMo → Profile: Topic** in the UI and a **NeMo persona** picker appears with the persona's allowed and forbidden topics. Six personas ship with the demo: ☁️ Cloud Support (default), 🏦 Bank, 🩺 Healthcare, ✈️ Airline, 📶 Telco and 🛍️ Retail. Run the same prompt under two personas to see the verdict flip, e.g. *"Can I take ibuprofen with my blood pressure medication?"* is blocked as Bank and allowed as Healthcare (guided-tour mission *Same prompt, different business*).
+
+Personas are defined once in [`nemo-guardrails/personas.json`](nemo-guardrails/personas.json). To add or change one:
+
+```bash
+python3 nemo-guardrails/build_personas.py          # regenerate NeMo configs + demo-ui/static/nemo-personas.js
+python3 nemo-guardrails/persona_judge_check.py     # check expected verdicts against the judge model (pre-deploy)
+# add new ids to NEMO_PROFILES (demo-ui/app.py) and ALLOWED_PROFILES (nemo-input.js); --check verifies this
+python3 nemo-guardrails/build_personas.py --check
+```
+Then redeploy `nemo-guardrails` and `guardrail-proxy`, and run `guardrail-proxy/tests/persona_matrix_test.py`.
 
 ---
 
@@ -67,6 +102,32 @@ Each layer can be switched per request with headers set by the UI (`x-static-gua
 * **Results** — live SSE token stream, TTFT and total duration, which layer blocked (and why), the Model Armor findings, and a raw SSE chunk timeline.
 * **Guided Tour** — 8 short missions (plus a bonus) that walk through each layer. The *What just happened?* panel explains every result, e.g. when Static Guardrails miss a reworded jailbreak and Model Armor catches it.
 * **Admin Panel** — slide-out audit analytics drawer (block rate, violation types, recent events), synced from Cloud Logging (`apigee-ai-sanitized-prompts`).
+* **Test Lab** — header button that opens the Guardrail Test Lab in a new tab (see below).
+
+---
+
+## 🧪 Guardrail Test Lab (OWASP)
+
+<p align="center">
+  <img src="docs/images/testlab-screenshot.png" alt="Guardrail Test Lab" width="100%">
+</p>
+
+`testlab.html` shows how much each layer catches on the **Curated OWASP suite**: 102 hand-written cases (88 attacks, 14 safe prompts) mapped to the OWASP Top 10 for LLM Applications (2025) and the OWASP API Security Top 10 (2023). Every attack runs against each layer on its own (Static, Model Armor, NeMo), then with all layers on.
+
+* **Test runs** (left sidebar) — one entry per run, grouped by test set, with *caught* and *safe prompts blocked*. Two profiles: **Balanced** and **Strictest** (Static strict · Model Armor strict · NeMo all rails). Drag the edge to resize; **«** or `[` collapses it.
+* **Overview** — catch rate per layer, which layer catches first, and the gaps.
+* **Results** — every case with each layer's verdict, filters and quick views (*Attacks missed*, *Safe prompts blocked*, *Flaky*), CSV export, and *Load in playground*.
+* **Test catalogue** and **Coverage map** — what each case tests, and which OWASP risks are tested or out of scope for a gateway.
+
+Run the suite yourself (needs a test app key; results land in `demo-ui/static/testlab/`):
+
+```bash
+APIGEE_SUITE_KEY=... python3 tests/owasp/run_suite.py --set curated                       # Balanced
+APIGEE_SUITE_KEY=... python3 tests/owasp/run_suite.py --set curated --profile strictest   # Strictest
+```
+
+> [!NOTE]
+> LLM-based layers (Model Armor, NeMo) can vary slightly between runs; inconsistent cases are re-run and marked *flaky*. This is a small hand-written suite that checks coverage, not a statistical benchmark.
 
 ---
 
@@ -94,7 +155,11 @@ Each layer can be switched per request with headers set by the UI (`x-static-gua
 │   ├── app.py                    # SSE proxy to Apigee, admin analytics API, Cloud Logging sync
 │   ├── Dockerfile                # non-root python:3.11-slim image
 │   └── static/                   # index.html, app.js, style.css, assets/architecture-diagram.png, tour/
-├── docs/images/                  # Light & dark Web UI screenshots for README
+│       ├── testlab.html          # Guardrail Test Lab
+│       └── testlab/              # Test Lab script, styles and the curated suite's results
+├── tests/owasp/                  # Curated OWASP suite: case builders, cases.json, run_suite.py, results/
+├── model-armor/                  # Model Armor + SDP template setup and the inbound preset sweep
+├── docs/images/                  # Web UI and Test Lab screenshots for README
 ├── setup-developer-app.sh        # creates the API product + developer app used by VerifyAPIKey
 └── run-demo.sh                   # runs the UI locally (fetches the API key from Secret Manager)
 ```
@@ -108,7 +173,7 @@ Each layer can be switched per request with headers set by the UI (`x-static-gua
 | Google Cloud Service | Role | APIs | IAM |
 | :--- | :--- | :--- | :--- |
 | **Apigee X** | Hosts `guardrail-proxy` and the `StaticGuardrails` SharedFlow | `apigee.googleapis.com` | `roles/apigee.admin` (deploy) |
-| **Model Armor** | Templates `ma-ai-gw-inbound` and `ma-ai-gw-outbound` (location `us`) | `modelarmor.googleapis.com` | `roles/modelarmor.user` on the Apigee runtime SA |
+| **Model Armor** | Templates `guardrail-proxy-{in,out}-{strict,balanced,permissive}` + SDP inspect template `guardrail-proxy-sdp` (location `us`), created by `python3 model-armor/setup_ma_templates.py` | `modelarmor.googleapis.com`, `dlp.googleapis.com` | `roles/modelarmor.user` on the Apigee runtime SA |
 | **Vertex AI** | Gemini 3.5 Flash Lite via `streamGenerateContent?alt=sse` | `aiplatform.googleapis.com` | `roles/aiplatform.user` on the Apigee runtime SA |
 | **Cloud Run** | Hosts `nemo-guardrails` and `demo-ui` | `run.googleapis.com` | `roles/run.admin` (deploy) |
 | **Secret Manager** | Stores the Apigee consumer key for `demo-ui` | `secretmanager.googleapis.com` | `roles/secretmanager.secretAccessor` on the UI service account |
@@ -166,9 +231,10 @@ APIGEE_API_KEY=... python3 guardrail-proxy/tests/scenario_presets_test.py   # al
 | Model Armor | Jailbreak / DAN (evades regex) · 中文 Toxicity · Tiếng Việt Toxicity · Sensitive Data (card + SSN) | Blocked by Model Armor on the prompt (400) |
 | Model Armor | Partial Hate Speech (mid-stream) | Stream starts, then is cut by Model Armor |
 | NeMo | Off-Topic (crypto advice) · Roleplay Jailbreak (FreeGPT) · Harmful Intent | Blocked by NeMo rails |
+| NeMo | Persona flip: Bank → Healthcare (same medication question) | Bank: blocked by the topic rail · Healthcare: 200 OK |
 | Layered | Classic DAN → Static · Roleplay → Model Armor · Crypto Advice → NeMo | All layers on; the first layer that recognises the threat blocks it |
 
 ---
 
 ## 📄 License
-Licensed under the Apache License, Version 2.0.
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE).
